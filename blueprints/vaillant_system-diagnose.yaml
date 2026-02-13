@@ -1,5 +1,5 @@
 blueprint:
-  name: "(Vaillant) 2. Health & System Monitor"
+  name: "(Vaillant) System-Diagnose"
   description: |
     🩺 **Modul 2: Der System-Wächter**
 
@@ -15,7 +15,7 @@ blueprint:
     **Kompatibilität:**
     Kann parallel zu "Core Heating" oder alleine genutzt werden.
 
-    **Autor:** bananapower | **Version:** 1.0 (Microservices Edition)
+    **Autor:** bananapower | **Version:** v1.0 (Microservices Edition)
 
   domain: automation
   source_url: https://raw.githubusercontent.com/howtobanana/vaillant-blueprint/main/blueprints/vaillant_system-diagnose.yaml

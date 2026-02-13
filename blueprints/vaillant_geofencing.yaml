@@ -1,7 +1,7 @@
 blueprint:
-  name: "(Vaillant) 4. Geofencing Manager"
+  name: "(Vaillant) Geofencing"
   description: |
-    🌍 **Modul 4: Geofencing & Anwesenheit (V2 Smart Zone)**
+    🌍 **Modul Geofencing & Anwesenheit (Smart Zone)**
 
     Schlanke Radius-/Personen-Logik für den globalen Away-Helper.
     Keine Physik-/ETA-Berechnung mehr, nur robuste Distanz- und Person-Regeln.
@@ -12,7 +12,7 @@ blueprint:
     - ⏱️ Kurzabwesenheits-Filter (Timeout).
     - 🎚️ Steuert den zentralen "Away-Mode Helper" für Modul 1.
 
-    **Autor:** bananapower | **Version:** 2.0 (Person-Based Edition)
+    **Autor:** bananapower | **Version:** v1.0 (Person-Based Edition)
 
   domain: automation
   source_url: https://raw.githubusercontent.com/howtobanana/vaillant-blueprint/main/blueprints/vaillant_geofencing.yaml
@@ -22,7 +22,7 @@ blueprint:
     section_geo_fencing:
       name: "🏠 Anwesenheits-Management"
       description: |
-        V2 Smart Zone: Entscheidet Away anhand Distanzradius + Person-Status.
+        Smart Zone: Entscheidet Away anhand Distanzradius + Person-Status.
         Der Away-Helper wird sofort gesetzt, wenn die Bedingungen erfüllt sind.
       collapsed: false
       input:

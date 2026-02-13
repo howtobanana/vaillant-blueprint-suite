@@ -1,9 +1,9 @@
 blueprint:
-  name: "(Vaillant) 5. Notification Tester"
+  name: "(Vaillant) Notification-Tester"
   description: |
     Utility: Sendet Test-Nachrichten mit exakt derselben Payload-Logik wie die Haupt-Module.
 
-    **Autor:** bananapower | **Version:** 1.0 (Microservices Edition)
+    **Autor:** bananapower | **Version:** v1.0 (Microservices Edition)
   domain: automation
   source_url: https://raw.githubusercontent.com/howtobanana/vaillant-blueprint/main/blueprints/vaillant_notification_tester.yaml
   author: "bananapower"
@@ -94,13 +94,13 @@ action:
 
   - service: "{{ notify_service }}"
     data:
-      title: "Vaillant V1.0 Test (Info)"
+      title: "Vaillant v1.0 Test (Info)"
       message: "✅ Dies ist eine normale Info-Nachricht (wie 'Fenster zu')."
     continue_on_error: true
 
   - service: "{{ critical_notify_service }}"
     data:
-      title: "Vaillant V1.0 Test (ALARM)"
+      title: "Vaillant v1.0 Test (ALARM)"
       message: "🚨 Dies ist eine KRITISCHE Warnung (wie 'Regen/Offen'). Wenn du das hörst, funktioniert die Ventilation-Config."
       data:
         push:

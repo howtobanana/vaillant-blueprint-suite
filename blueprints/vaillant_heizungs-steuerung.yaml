@@ -1,9 +1,9 @@
 blueprint:
-  name: "(Vaillant) 1. Core Heating Engine"
+  name: "(Vaillant) Heizungs-Steuerung"
   description: |
     🔥 **Modul 1: Die Kern-Heizungssteuerung**
 
-    Dies ist das Herzstueck der Vaillant V1.0 Suite. Es steuert exklusiv die Therme (Master) und die Heizkoerper (TRVs).
+    Dies ist das Herzstueck der Vaillant v1.0 Suite. Es steuert exklusiv die Therme (Master) und die Heizkoerper (TRVs).
 
     **Funktionen:**
     - 🌡️ Intelligente Vorlauf-Steuerung (Master folgt dem Bedarf).
@@ -14,7 +14,7 @@ blueprint:
     **Unabhängigkeit:**
     Dieses Modul läuft autark. Für Zusatzfunktionen (Geofence, Warnungen, Lüften) bitte die anderen Module der Suite nutzen.
 
-    **Autor:** bananapower | **Version:** 1.0 (Microservices Edition)
+    **Autor:** bananapower | **Version:** v1.0 (Microservices Edition)
 
   domain: automation
   source_url: https://raw.githubusercontent.com/howtobanana/vaillant-blueprint/main/blueprints/vaillant_heizungs-steuerung.yaml

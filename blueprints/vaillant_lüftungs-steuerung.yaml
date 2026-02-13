@@ -1,5 +1,5 @@
 blueprint:
-  name: "(Vaillant) 3. Ventilation & Safety"
+  name: "(Vaillant) Lüftungs-Steuerung"
   description: |
     🪟 **Modul 3: Lüftungs-Assistent**
 
@@ -14,7 +14,7 @@ blueprint:
     **Info:**
     Dieses Modul sendet nur Nachrichten. Das "Core Heating" Modul erkennt die offenen Fenster separat und stoppt die Heizung automatisch.
 
-    **Autor:** bananapower | **Version:** 1.0 (Microservices Edition)
+    **Autor:** bananapower | **Version:** v1.0 (Microservices Edition)
 
   domain: automation
   source_url: https://raw.githubusercontent.com/howtobanana/vaillant-blueprint/main/blueprints/vaillant_l%C3%BCftungs-steuerung.yaml
