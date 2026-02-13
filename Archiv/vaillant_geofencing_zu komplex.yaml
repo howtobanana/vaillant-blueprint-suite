@@ -1,0 +1,422 @@
+blueprint:
+  name: "(Vaillant) 4. Geofencing Manager"
+  description: |
+    🌍 **Modul 4: Geofencing & Anwesenheit**
+
+    Die intelligente "Gehirn"-Komponente. Ermittelt, ob wirklich niemand zuhause ist, und steuert den zentralen Away-Schalter.
+
+    **Funktionen:**
+    - 📍 GPS-Tracking (Personen/Device Tracker).
+    - 🏠 Zonen-Logik (Verlassen vs. Heimkehr).
+    - 🚗 Physik-basiertes Pre-Heating (ETA vs. Aufheizzeit).
+    - 🎚️ Steuert den zentralen "Away-Mode Helper".
+
+    **Verbindung:**
+    Dieses Modul schaltet nur den Helper (input_boolean). Modul 1 (Core) liest diesen Helper aus, um die Heizung zu senken.
+
+    **Autor:** bananapower | **Version:** 1.0 (Microservices Edition)
+
+  domain: automation
+  source_url: https://raw.githubusercontent.com/howtobanana/vaillant-blueprint/main/vaillant_geofencing.yaml
+  author: "bananapower"
+
+  input:
+    section_geo_fencing:
+      name: "🏠 Anwesenheits-Management"
+      description: |
+        Zentrale Steuerung für Urlaub und Abwesenheit.
+        Hinweis: Auto-Away funktioniert nur mit gesetztem Away-Mode Helper.
+        Ohne Helper/Sensoren bleibt dieser Teil automatisch ohne Wirkung.
+      collapsed: false
+      input:
+        enable_geofencing:
+          name: "🔘 GeoFencing aktiv"
+          description: |
+            Schalter: HOME=Eco/Comfort, Alle WEG=Away.
+          default: false
+          selector:
+            boolean:
+        external_presence_sensor:
+          name: "👀 Externer Präsenz-Sensor (opt)"
+          description: |
+            Externes HOME/WEG, überschreibt GPS (z.B. input_boolean.someone_home).
+          default: ""
+          selector:
+            entity:
+              domain:
+                - input_boolean
+                - binary_sensor
+        global_presence_entities:
+          name: "👀 GPS Personen/Tracker"
+          description: |
+            Person/Tracker für HOME/WEG.
+          default: []
+          selector:
+            entity:
+              domain:
+                - person
+                - device_tracker
+              multiple: true
+        away_hours:
+          name: "🔧 Away-Verzögerung (h)"
+          description: |
+            Wert: Abwesenheit bis Away-Temp.
+          default: 3
+          selector:
+            number:
+              min: 0.5
+              max: 24
+              step: 0.5
+              unit_of_measurement: "h"
+        reference_temp_sensor:
+          name: "🌡️ Referenz-Temperatursensor"
+          description: |
+            Pflichtfeld: Der Master-Raum Temperatursensor (zur Berechnung der Aufheizzeit).
+            Empfehlung: Derselbe Sensor wie in Modul 1 (Master Temperatursensor).
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+        target_comfort_temp:
+          name: "🎯 Ziel-Komforttemperatur (°C)"
+          description: |
+            Die Wunschtemperatur bei Ankunft (z.B. 21°C).
+          default: 21.0
+          selector:
+            number:
+              min: 16
+              max: 26
+              step: 0.5
+              unit_of_measurement: "°C"
+        proximity_entity:
+          name: "📍 Proximity-Entity"
+          description: |
+            Pflichtfeld: Sensor/Proximity mit Distanz und Fahrtrichtung zur Home-Zone.
+            Verwenden Sie eine vorhandene proximity.* Entity oder richten Sie die Home-Assistant Proximity-Integration ein.
+            Benötigte Attribute: Distanzwert + dir_of_travel.
+          selector:
+            entity:
+              domain:
+                - sensor
+                - proximity
+        outdoor_temp_sensor:
+          name: "🌦️ Außentemperatur-Sensor"
+          description: |
+            Pflichtfeld: Sensor für Außentemperatur zur wetterabhängigen Kompensation der Aufheizzeit.
+            Empfehlung: Derselbe Außensensor wie in Modul 1.
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+        away_mode_boolean:
+          name: "Zu steuernder Away-Helper"
+          description: >
+            Dieser input_boolean wird AN/AUS geschaltet (Pflichtfeld für Modul-Verbund).
+            So erstellen Sie ihn: Einstellungen → Geräte & Dienste → Helfer → Helfer erstellen → Umschalter (input_boolean).
+            Beispiel-Entity: input_boolean.away_mode.
+            ℹ️ Wichtig: Muss derselbe Helper sein, der in "Modul 1 Core Heating" als Eingang gewählt ist!
+            (Muss identisch sein mit Modul 1 Helper)
+          default: []
+          selector:
+            entity:
+              domain: input_boolean
+              multiple: true
+    section_advanced_preheat:
+      name: "⚙️ Advanced Inputs (Speeds/Rates)"
+      description: |
+        Erweiterte Parameter für physikbasiertes Pre-Heating.
+        Nur anpassen, wenn Sie Ihr Heiz- und Fahrprofil feinjustieren möchten.
+      collapsed: true
+      input:
+        system_warmup_time:
+          name: "🔥 System-Aufwärmzeit (min)"
+          description: |
+            Zeit, die die Therme braucht, um das Wasser aufzuheizen (Trägheit).
+          default: 20
+          selector:
+            number:
+              min: 0
+              max: 120
+              step: 1
+              unit_of_measurement: "min"
+        heating_rate:
+          name: "📈 Heizrate (min/°C)"
+          description: |
+            Wie viele Minuten dauert es, den Raum um 1°C aufzuheizen?
+          default: 20
+          selector:
+            number:
+              min: 1
+              max: 120
+              step: 1
+              unit_of_measurement: "min/°C"
+        city_radius:
+          name: "🏙️ Stadt-Radius (km)"
+          description: |
+            Schwelle zwischen innerstädtischer und außerstädtischer ETA-Berechnung.
+          default: 10
+          selector:
+            number:
+              min: 1
+              max: 100
+              step: 1
+              unit_of_measurement: "km"
+        inner_city_speed:
+          name: "🚗 Inner City Speed (km/h)"
+          description: |
+            Typische Fahrgeschwindigkeit im Stadtgebiet.
+          default: 25
+          selector:
+            number:
+              min: 5
+              max: 80
+              step: 1
+              unit_of_measurement: "km/h"
+        outer_city_speed:
+          name: "🛣️ Outer City Speed (km/h)"
+          description: |
+            Typische Fahrgeschwindigkeit außerhalb des Stadtgebiets.
+          default: 80
+          selector:
+            number:
+              min: 20
+              max: 160
+              step: 1
+              unit_of_measurement: "km/h"
+
+mode: restart
+
+trigger:
+  - platform: time_pattern
+    minutes: "/30"
+    id: main_loop
+
+  - platform: time_pattern
+    minutes: "/1"
+    id: geo_refresh
+
+  - platform: state
+    entity_id: !input global_presence_entities
+    id: global_presence_change
+
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input external_presence_sensor
+    id: external_presence_change
+
+condition: []
+
+action:
+  - variables:
+      inputs:
+        enable_geofencing: !input enable_geofencing
+        external_presence_sensor: !input external_presence_sensor
+        global_presence_entities: !input global_presence_entities
+        away_hours: !input away_hours
+        reference_temp_sensor: !input reference_temp_sensor
+        target_comfort_temp: !input target_comfort_temp
+        system_warmup_time: !input system_warmup_time
+        heating_rate: !input heating_rate
+        city_radius: !input city_radius
+        inner_city_speed: !input inner_city_speed
+        outer_city_speed: !input outer_city_speed
+        proximity_entity: !input proximity_entity
+        outdoor_temp_sensor: !input outdoor_temp_sensor
+        away_mode_boolean: !input away_mode_boolean
+      geofencing_enabled: "{{ inputs.enable_geofencing }}"
+      away_mode_helper_set: "{{ inputs.away_mode_boolean | length > 0 }}"
+      external_presence_entity: >
+        {% if inputs.external_presence_sensor is string %}
+          {{ inputs.external_presence_sensor }}
+        {% elif inputs.external_presence_sensor is iterable and inputs.external_presence_sensor is not string and (inputs.external_presence_sensor | length > 0) %}
+          {{ inputs.external_presence_sensor[0] }}
+        {% else %}
+
+        {% endif %}
+      use_external: >
+        {{ (geofencing_enabled | bool(false)) and (external_presence_entity | trim) != "" }}
+      external_sensor_state: >
+        {% if use_external %}
+          {{ states(external_presence_entity) }}
+        {% else %}
+          none
+        {% endif %}
+      external_sensor_home: >
+        {% if use_external %}
+          {% if external_sensor_state in ['on', 'home'] %}
+            true
+          {% elif external_sensor_state in ['off', 'not_home', 'away'] %}
+            false
+          {% else %}
+            true
+          {% endif %}
+        {% else %}
+          false
+        {% endif %}
+      use_internal_geofencing: >
+        {{ (geofencing_enabled | bool(false)) and (not (use_external | bool(false))) and ((inputs.global_presence_entities | length) > 0) }}
+      global_presence_expanded: >
+        {% if use_internal_geofencing %}
+          {{ expand(inputs.global_presence_entities) | selectattr('last_changed', 'defined') | list }}
+        {% else %}
+          []
+        {% endif %}
+      anyone_home: >
+        {% if use_internal_geofencing %}
+          {% if global_presence_expanded | length == 0 %}
+            true
+          {% else %}
+            {{ (global_presence_expanded | selectattr('state', 'eq', 'home') | list | length > 0) | bool(false) }}
+          {% endif %}
+        {% else %}
+          false
+        {% endif %}
+      person_away_duration_hours: >
+        {% if use_internal_geofencing and not anyone_home %}
+          {% set away_people = global_presence_expanded
+                               | rejectattr('state', 'eq', 'home')
+                               | selectattr('last_changed', 'defined')
+                               | list %}
+          {% if away_people | length > 0 %}
+            {% set last_home = away_people | map(attribute='last_changed') | list | max %}
+            {% set last_home_dt = last_home | as_datetime %}
+            {% if last_home_dt is not none %}
+              {{ ((as_timestamp(now()) - as_timestamp(last_home_dt, as_timestamp(now()))) / 3600) }}
+            {% else %}
+              0
+            {% endif %}
+          {% else %}
+            0
+          {% endif %}
+        {% else %}
+          0
+        {% endif %}
+      away_long_enough: "{{ (person_away_duration_hours | float(0)) >= (inputs.away_hours | float(0)) }}"
+      preheating_active: >
+        {% if use_internal_geofencing and not anyone_home %}
+          {# 1. Get Physics Data #}
+          {% set current_temp = states(inputs.reference_temp_sensor) | float(18) %}
+          {% set target = inputs.target_comfort_temp | float(21) %}
+          {% set outdoor = states(inputs.outdoor_temp_sensor) | float(0) %}
+
+          {# 2. Calculate Delta #}
+          {% set delta = target - current_temp %}
+          {% if delta < 0 %}{% set delta = 0 %}{% endif %}
+
+          {# 3. Weather Compensation #}
+          {# Colder outside = Slower heat up #}
+          {% if outdoor < -5 %}
+            {% set rate = inputs.heating_rate * 1.5 %}
+          {% elif outdoor < 5 %}
+            {% set rate = inputs.heating_rate * 1.2 %}
+          {% else %}
+            {% set rate = inputs.heating_rate %}
+          {% endif %}
+
+          {# 4. Calculate Heat Time #}
+          {# (Degrees needed * Rate) + System Inertia #}
+          {% set heat_time = (delta * rate) + inputs.system_warmup_time %}
+
+          {# 5. Get Travel Data #}
+          {% set dist_raw = states(inputs.proximity_entity) | float(0) %}
+          {% set dist_unit = (state_attr(inputs.proximity_entity, 'unit_of_measurement') or 'm') | lower %}
+          {% if dist_unit in ['km', 'kilometer', 'kilometre'] %}
+            {% set dist_km = dist_raw %}
+          {% else %}
+            {% set dist_km = dist_raw / 1000 %}
+          {% endif %}
+          {% set dir = (state_attr(inputs.proximity_entity, 'dir_of_travel') or '') | lower %}
+
+          {# 6. Calculate ETA #}
+          {% if dist_km <= inputs.city_radius %}
+            {% set speed = inputs.inner_city_speed %}
+          {% else %}
+            {% set speed = inputs.outer_city_speed %}
+          {% endif %}
+          {% set eta_min = (dist_km / speed * 60) | round(0) %}
+
+          {# 7. Decision #}
+          {# Trigger if moving towards OR stationary in traffic near home (<5km) #}
+          {% set moving_home = dir == 'towards' or (dir == 'stationary' and dist_km < 5) %}
+
+          {# Trigger if arrival is imminent compared to heat time (plus 5 min buffer) #}
+          {% set result = moving_home and (eta_min <= (heat_time + 5)) %}
+          {{ result }}
+        {% else %}
+          false
+        {% endif %}
+      away_mode_should_be_active: >
+        {% if (not (geofencing_enabled | bool(false))) or (not (away_mode_helper_set | bool(false))) %}
+          false
+        {% elif use_external %}
+          {{ not (external_sensor_home | bool(false)) }}
+        {% elif use_internal_geofencing %}
+          {{ (not (anyone_home | bool(false))) and (away_long_enough | bool(false)) and (not (preheating_active | bool(false))) }}
+        {% else %}
+          false
+        {% endif %}
+      away_mode_entity_on: >
+        {% if away_mode_helper_set %}
+          {% set ns = namespace(active=false) %}
+          {% for ent in inputs.away_mode_boolean %}
+            {% if ent is string and ent != '' and is_state(ent, 'on') %}
+              {% set ns.active = true %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.active | bool(false) }}
+        {% else %}
+          false
+        {% endif %}
+      info_notifications_allowed: false
+      normal_notify_targets_list: ""
+
+  # ===== STEP 1: GEOFENCING LOGIC =====
+  # ===== STEP 9: AWAY HELPER TOGGLE =====
+  - choose:
+      - conditions: "{{ (away_mode_should_be_active | bool(false)) and (not (away_mode_entity_on | bool(false))) }}"
+        sequence:
+          - repeat:
+              for_each: "{{ inputs.away_mode_boolean if (inputs.away_mode_boolean is iterable and inputs.away_mode_boolean is not string) else [] }}"
+              sequence:
+                - service: input_boolean.turn_on
+                  target:
+                    entity_id: "{{ item }}"
+                  continue_on_error: true
+          # NEU: Optional Info-Notification
+          - choose:
+              - conditions:
+                  - "{{ info_notifications_allowed }}"
+                  - "{{ normal_notify_targets_list | length > 0 }}"
+                sequence:
+                  - repeat:
+                      for_each: "{{ normal_notify_targets_list.split(',') if (normal_notify_targets_list | trim) != '' else [] }}"
+                      sequence:
+                        - service: "{{ item }}"
+                          data:
+                            title: "🌍 Away-Mode aktiviert"
+                            message: "{{ person_away_duration_hours | round(1) }}h außerhalb - Away-Mode wurde aktiviert."
+                          continue_on_error: true
+      - conditions: "{{ (not (away_mode_should_be_active | bool(false))) and (away_mode_entity_on | bool(false)) }}"
+        sequence:
+          - repeat:
+              for_each: "{{ inputs.away_mode_boolean if (inputs.away_mode_boolean is iterable and inputs.away_mode_boolean is not string) else [] }}"
+              sequence:
+                - service: input_boolean.turn_off
+                  target:
+                    entity_id: "{{ item }}"
+                  continue_on_error: true
+          # NEU: Optional Info-Notification
+          - choose:
+              - conditions:
+                  - "{{ info_notifications_allowed }}"
+                  - "{{ normal_notify_targets_list | length > 0 }}"
+                sequence:
+                  - repeat:
+                      for_each: "{{ normal_notify_targets_list.split(',') if (normal_notify_targets_list | trim) != '' else [] }}"
+                      sequence:
+                        - service: "{{ item }}"
+                          data:
+                            title: "🏠 Away-Mode deaktiviert"
+                            message: "Präsenz erkannt - Heizung auf Eco/Comfort"
+                          continue_on_error: true

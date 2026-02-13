@@ -1,0 +1,947 @@
+blueprint:
+  name: "(Vaillant) Heizungs-Steuerung"
+  description: |
+    **Zentrale Heizungslogik für Vaillant-Systeme**
+
+    Dieses Modul bildet das Herzstück der Heizungssteuerung. Es koordiniert den Master-Thermostat und die Heizkörperventile (TRVs) basierend auf physikalischem Bedarf, Wetterdaten und Sicherheitslogik.
+
+    **Kern-Funktionen:**
+    *   🛡️ **Dynamic Safety:** Unterscheidet zwischen Kälteeinbruch (Not-Aus) und Luftaustausch (Weiterheizen).
+    *   🔗 **Smart Follower:** Dynamische Offset-Steuerung für Nebenräume (folgen dem Master).
+    *   ⚡ **Echtzeit-Reaktion:** Sofortige Anpassung bei Statusänderungen ohne Latenz.
+    *   🧠 **Fail-Safe:** Mehrstufige Sicherheitslogik (Debounce, Frostschutz, 60min Time-Guard).
+
+    **Das Ökosystem:**
+    Entwickelt für den Betrieb im Verbund mit:
+    *   📍 `(Vaillant) Geofencing` (Anwesenheit & Eco).
+    *   💨 `(Vaillant) Lüftungs-Steuerung` (Luftaustausch & Feuchtigkeit).
+    *   ❤️ `(Vaillant) System-Diagnose` (Wartung & Batterien).
+
+    **Voraussetzungen:**
+    Erfordert die **myVaillant** Integration (HACS). Besonderer Dank an die Entwickler dieser Integration für die Bereitstellung der Schnittstelle.
+
+    **Haftungsausschluss:**
+    Dies ist ein privates Projekt. Der Autor ist kein zertifizierter Installateur. Die Nutzung erfolgt auf eigene Gefahr. Für Schäden an der Anlage oder durch Fehlkonfiguration wird keine Haftung übernommen.
+
+    **Version:** 2.0 | **Autor:** bananapower
+  domain: automation
+  author: bananapower
+  source_url: https://raw.githubusercontent.com/howtobanana/vaillant-blueprint/main/vaillant_core_heating_v2.yaml
+
+  input:
+    section_master:
+      name: "🏠 Master Room Settings"
+      description: |
+
+        Zentrale Konfiguration für den führenden Raum (Master).
+        Der Master gibt die Basis-Solltemperatur vor und wird durch Dynamic Safety geschützt.
+
+      collapsed: false
+      input:
+        master_climate:
+          name: "♨️ Master Thermostat"
+          description: |
+            Das führende Thermostat der Anlage.
+          selector:
+            entity:
+              domain: climate
+        master_window:
+          name: "🪟 Master Fensterkontakt"
+          description: |
+            Fensterstatus im Master-Raum.
+          selector:
+            entity:
+              domain: binary_sensor
+              device_class: window
+        master_temp_sensor:
+          name: "🌡️ Master Temperatursensor"
+          description: |
+            Referenztemperatur für Dynamic Safety und Heizbedarf.
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+        master_comfort_input:
+          name: "🎚️ Master Komfort-Helper"
+          description: |
+            Input-Helper für den Komfort-Sollwert des Masters.
+          selector:
+            entity:
+              domain: input_number
+
+    section_follower_rooms:
+      name: "🔗 Follower Rooms"
+      description: |
+
+        Passive Räume, die nur dem Master folgen und nie selbst Heizbedarf anfordern.
+        Ziel wird als negativer Offset vom Master-Sollwert berechnet.
+
+      collapsed: true
+      input:
+        follower1_enabled:
+          name: "🔘 Follower 1 aktiv"
+          description: |
+            Schaltet Follower-Raum 1 ein/aus.
+          default: false
+          selector:
+            boolean:
+        follower1_climate:
+          name: "♨️ Follower 1 Thermostat"
+          description: |
+            TRV/Thermostat für Follower-Raum 1.
+          default: ""
+          selector:
+            entity:
+              domain: climate
+        follower1_window:
+          name: "🪟 Follower 1 Fensterkontakt"
+          description: |
+            Fensterstatus für Frostschutz.
+          default: ""
+          selector:
+            entity:
+              domain: binary_sensor
+              device_class: window
+        follower1_offset:
+          name: "↘️ Follower 1 Offset zum Master (°C)"
+          description: |
+            Negativer Offset zum Master-Wert. (Bsp: Master 21°C - 2°C Offset = 19°C). Passiver Raum.
+          default: -2.0
+          selector:
+            number:
+              min: -3.0
+              max: -0.5
+              step: 0.5
+              unit_of_measurement: "°C"
+
+        follower2_enabled:
+          name: "🔘 Follower 2 aktiv"
+          description: |
+            Schaltet Follower-Raum 2 ein/aus.
+          default: false
+          selector:
+            boolean:
+        follower2_climate:
+          name: "♨️ Follower 2 Thermostat"
+          description: |
+            TRV/Thermostat für Follower-Raum 2.
+          default: ""
+          selector:
+            entity:
+              domain: climate
+        follower2_window:
+          name: "🪟 Follower 2 Fensterkontakt"
+          description: |
+            Fensterstatus für Frostschutz.
+          default: ""
+          selector:
+            entity:
+              domain: binary_sensor
+              device_class: window
+        follower2_offset:
+          name: "↘️ Follower 2 Offset zum Master (°C)"
+          description: |
+            Negativer Offset zum Master-Wert. (Bsp: Master 21°C - 2°C Offset = 19°C). Passiver Raum.
+          default: -2.0
+          selector:
+            number:
+              min: -3.0
+              max: -0.5
+              step: 0.5
+              unit_of_measurement: "°C"
+
+    section_isolated_rooms:
+      name: "🌡️ Isolated Rooms"
+      description: |
+
+        Isolierte Räume mit eigenem Komfort-Sollwert.
+        Diese Räume können den Boiler-Bedarf auslösen, Follower-Räume dagegen nicht.
+
+      collapsed: true
+      input:
+        room2_enabled:
+          name: "🔘 Raum 2 aktiv"
+          description: |
+            Schaltet Raum 2 ein/aus.
+          default: false
+          selector:
+            boolean:
+        room2_climate:
+          name: "♨️ Raum 2 Thermostat"
+          description: |
+            TRV/Thermostat von Raum 2.
+          default: ""
+          selector:
+            entity:
+              domain: climate
+        room2_window:
+          name: "🪟 Raum 2 Fensterkontakt"
+          description: |
+            Fensterstatus für Frostschutz.
+          default: ""
+          selector:
+            entity:
+              domain: binary_sensor
+              device_class: window
+        room2_temp_sensor:
+          name: "🌡️ Raum 2 Temperatursensor (opt)"
+          description: |
+            Optionaler externer Sensor; sonst wird die TRV-Temperatur genutzt.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+        room2_comfort:
+          name: "🎚️ Raum 2 Komfort (°C)"
+          description: |
+            Komfort-Sollwert für Raum 2.
+          default: 20.0
+          selector:
+            number:
+              min: 18.0
+              max: 24.0
+              step: 0.5
+              unit_of_measurement: "°C"
+
+        room3_enabled:
+          name: "🔘 Raum 3 aktiv"
+          description: |
+            Schaltet Raum 3 ein/aus.
+          default: false
+          selector:
+            boolean:
+        room3_climate:
+          name: "♨️ Raum 3 Thermostat"
+          description: |
+            TRV/Thermostat von Raum 3.
+          default: ""
+          selector:
+            entity:
+              domain: climate
+        room3_window:
+          name: "🪟 Raum 3 Fensterkontakt"
+          description: |
+            Fensterstatus für Frostschutz.
+          default: ""
+          selector:
+            entity:
+              domain: binary_sensor
+              device_class: window
+        room3_temp_sensor:
+          name: "🌡️ Raum 3 Temperatursensor (opt)"
+          description: |
+            Optionaler externer Sensor; sonst wird die TRV-Temperatur genutzt.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+        room3_comfort:
+          name: "🎚️ Raum 3 Komfort (°C)"
+          description: |
+            Komfort-Sollwert für Raum 3.
+          default: 20.0
+          selector:
+            number:
+              min: 18.0
+              max: 24.0
+              step: 0.5
+              unit_of_measurement: "°C"
+
+        room4_enabled:
+          name: "🔘 Raum 4 aktiv"
+          description: |
+            Schaltet Raum 4 ein/aus.
+          default: false
+          selector:
+            boolean:
+        room4_climate:
+          name: "♨️ Raum 4 Thermostat"
+          description: |
+            TRV/Thermostat von Raum 4.
+          default: ""
+          selector:
+            entity:
+              domain: climate
+        room4_window:
+          name: "🪟 Raum 4 Fensterkontakt"
+          description: |
+            Fensterstatus für Frostschutz.
+          default: ""
+          selector:
+            entity:
+              domain: binary_sensor
+              device_class: window
+        room4_temp_sensor:
+          name: "🌡️ Raum 4 Temperatursensor (opt)"
+          description: |
+            Optionaler externer Sensor; sonst wird die TRV-Temperatur genutzt.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+        room4_comfort:
+          name: "🎚️ Raum 4 Komfort (°C)"
+          description: |
+            Komfort-Sollwert für Raum 4.
+          default: 20.0
+          selector:
+            number:
+              min: 18.0
+              max: 24.0
+              step: 0.5
+              unit_of_measurement: "°C"
+
+        room5_enabled:
+          name: "🔘 Raum 5 aktiv"
+          description: |
+            Schaltet Raum 5 ein/aus.
+          default: false
+          selector:
+            boolean:
+        room5_climate:
+          name: "♨️ Raum 5 Thermostat"
+          description: |
+            TRV/Thermostat von Raum 5.
+          default: ""
+          selector:
+            entity:
+              domain: climate
+        room5_window:
+          name: "🪟 Raum 5 Fensterkontakt"
+          description: |
+            Fensterstatus für Frostschutz.
+          default: ""
+          selector:
+            entity:
+              domain: binary_sensor
+              device_class: window
+        room5_temp_sensor:
+          name: "🌡️ Raum 5 Temperatursensor (opt)"
+          description: |
+            Optionaler externer Sensor; sonst wird die TRV-Temperatur genutzt.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+        room5_comfort:
+          name: "🎚️ Raum 5 Komfort (°C)"
+          description: |
+            Komfort-Sollwert für Raum 5.
+          default: 20.0
+          selector:
+            number:
+              min: 18.0
+              max: 24.0
+              step: 0.5
+              unit_of_measurement: "°C"
+
+    section_smart_functions:
+      name: "⚙️ Smart Functions"
+      description: |
+
+        Globale Sicherheits- und Regelparameter.
+        Dynamic Safety schützt bei Kälteeinbruch trotz offenem Fenster.
+
+      collapsed: false
+      input:
+        winter_mode:
+          name: "❄️ Winter Mode aktiv"
+          description: |
+            Wenn AUS, werden alle Räume auf Mindesttemperatur gefahren.
+          default: true
+          selector:
+            boolean:
+        enable_dynamic_safety:
+          name: "🛡️ Dynamic Safety aktiv"
+          description: |
+            Aktiviert den Not-Frostschutz bei starkem Temperaturabfall oder sehr lang offenem Master-Fenster.
+          default: true
+          selector:
+            boolean:
+        dynamic_safety_tolerance:
+          name: "📉 Dynamic Safety Toleranz (°C)"
+          description: |
+            Grenzwert für kritischen Temperaturabfall im Master-Raum.
+          default: 2.0
+          selector:
+            number:
+              min: 0.5
+              max: 5.0
+              step: 0.5
+              unit_of_measurement: "°C"
+        minimum_temp:
+          name: "🧊 Minimum Temperature / Frostschutz (°C)"
+          description: |
+            Untergrenze für Frostschutzbetrieb.
+          default: 5.0
+          selector:
+            number:
+              min: 4.0
+              max: 15.0
+              step: 0.5
+              unit_of_measurement: "°C"
+
+    section_system_prefixes:
+      name: "🔧 System Prefixes"
+      description: |
+
+        Systemnahe Optionen für Boiler-Schaltung und Logging.
+
+      collapsed: true
+      input:
+        boiler_switch_entity:
+          name: "🔥 Boiler Demand Entity (opt)"
+          description: |
+            Optionaler Switch/Input-Boolean für Wärmebedarf (AN/AUS).
+          default: ""
+          selector:
+            entity:
+              domain:
+                - switch
+                - input_boolean
+        write_deadband:
+          name: "↔️ Write Deadband (°C)"
+          description: |
+            Nur schreiben, wenn sich der Sollwert um mindestens diesen Wert ändert.
+          default: 0.2
+          selector:
+            number:
+              min: 0.1
+              max: 1.0
+              step: 0.1
+              unit_of_measurement: "°C"
+        enable_debug_log:
+          name: "🧾 Debug-Log aktiv"
+          description: |
+            Schreibt einen kompakten Debug-Eintrag in `system_log`.
+          default: false
+          selector:
+            boolean:
+        log_prefix:
+          name: "🏷️ Log Prefix"
+          description: |
+            Präfix für Debug-Meldungen.
+          default: "[Vaillant Core]"
+          selector:
+            text:
+
+mode: restart
+max_exceeded: silent
+
+trigger_variables:
+  room2_window_entity: !input room2_window
+  room3_window_entity: !input room3_window
+  room4_window_entity: !input room4_window
+  room5_window_entity: !input room5_window
+  follower1_window_entity: !input follower1_window
+  follower2_window_entity: !input follower2_window
+
+trigger:
+  - platform: homeassistant
+    event: start
+    id: startup
+
+  - platform: time_pattern
+    minutes: "/5"
+    id: heartbeat
+
+  - platform: state
+    entity_id: !input master_comfort_input
+    id: master_comfort_change
+
+  - platform: state
+    entity_id: !input master_temp_sensor
+    id: master_temp_change
+
+  - platform: state
+    entity_id: !input master_window
+    to: "on"
+    for: "00:00:30"
+    id: master_window_open
+
+  - platform: state
+    entity_id: !input master_window
+    to: "off"
+    for: "00:00:30"
+    id: master_window_closed
+
+  - platform: template
+    value_template: "{{ room2_window_entity != '' and is_state(room2_window_entity, 'on') }}"
+    for: "00:00:30"
+    id: room2_window_open
+
+  - platform: template
+    value_template: "{{ room2_window_entity != '' and is_state(room2_window_entity, 'off') }}"
+    for: "00:00:30"
+    id: room2_window_closed
+
+  - platform: template
+    value_template: "{{ room3_window_entity != '' and is_state(room3_window_entity, 'on') }}"
+    for: "00:00:30"
+    id: room3_window_open
+
+  - platform: template
+    value_template: "{{ room3_window_entity != '' and is_state(room3_window_entity, 'off') }}"
+    for: "00:00:30"
+    id: room3_window_closed
+
+  - platform: template
+    value_template: "{{ room4_window_entity != '' and is_state(room4_window_entity, 'on') }}"
+    for: "00:00:30"
+    id: room4_window_open
+
+  - platform: template
+    value_template: "{{ room4_window_entity != '' and is_state(room4_window_entity, 'off') }}"
+    for: "00:00:30"
+    id: room4_window_closed
+
+  - platform: template
+    value_template: "{{ room5_window_entity != '' and is_state(room5_window_entity, 'on') }}"
+    for: "00:00:30"
+    id: room5_window_open
+
+  - platform: template
+    value_template: "{{ room5_window_entity != '' and is_state(room5_window_entity, 'off') }}"
+    for: "00:00:30"
+    id: room5_window_closed
+
+  - platform: template
+    value_template: "{{ follower1_window_entity != '' and is_state(follower1_window_entity, 'on') }}"
+    for: "00:00:30"
+    id: follower1_window_open
+
+  - platform: template
+    value_template: "{{ follower1_window_entity != '' and is_state(follower1_window_entity, 'off') }}"
+    for: "00:00:30"
+    id: follower1_window_closed
+
+  - platform: template
+    value_template: "{{ follower2_window_entity != '' and is_state(follower2_window_entity, 'on') }}"
+    for: "00:00:30"
+    id: follower2_window_open
+
+  - platform: template
+    value_template: "{{ follower2_window_entity != '' and is_state(follower2_window_entity, 'off') }}"
+    for: "00:00:30"
+    id: follower2_window_closed
+
+condition: []
+
+action:
+  - variables:
+      master_climate: !input master_climate
+      master_window: !input master_window
+      master_temp_sensor: !input master_temp_sensor
+      master_comfort_input: !input master_comfort_input
+
+      follower1_enabled: !input follower1_enabled
+      follower1_climate: !input follower1_climate
+      follower1_window: !input follower1_window
+      follower1_offset: !input follower1_offset
+
+      follower2_enabled: !input follower2_enabled
+      follower2_climate: !input follower2_climate
+      follower2_window: !input follower2_window
+      follower2_offset: !input follower2_offset
+
+      room2_enabled: !input room2_enabled
+      room2_climate: !input room2_climate
+      room2_window: !input room2_window
+      room2_temp_sensor: !input room2_temp_sensor
+      room2_comfort: !input room2_comfort
+
+      room3_enabled: !input room3_enabled
+      room3_climate: !input room3_climate
+      room3_window: !input room3_window
+      room3_temp_sensor: !input room3_temp_sensor
+      room3_comfort: !input room3_comfort
+
+      room4_enabled: !input room4_enabled
+      room4_climate: !input room4_climate
+      room4_window: !input room4_window
+      room4_temp_sensor: !input room4_temp_sensor
+      room4_comfort: !input room4_comfort
+
+      room5_enabled: !input room5_enabled
+      room5_climate: !input room5_climate
+      room5_window: !input room5_window
+      room5_temp_sensor: !input room5_temp_sensor
+      room5_comfort: !input room5_comfort
+
+      winter_mode: !input winter_mode
+      enable_dynamic_safety: !input enable_dynamic_safety
+      dynamic_safety_tolerance: !input dynamic_safety_tolerance
+      minimum_temp: !input minimum_temp
+
+      boiler_switch_entity: !input boiler_switch_entity
+      write_deadband: !input write_deadband
+      enable_debug_log: !input enable_debug_log
+      log_prefix: !input log_prefix
+
+  - variables:
+      minimum_temp_value: "{{ minimum_temp | float(5.0) }}"
+      write_deadband_value: "{{ write_deadband | float(0.2) }}"
+
+      master_comfort_target: "{{ states(master_comfort_input) | float(21.0) }}"
+      master_current_setpoint: "{{ state_attr(master_climate, 'temperature') | float(0) }}"
+      master_current_temp: >
+        {% if states(master_temp_sensor) not in ['unknown', 'unavailable', 'none', ''] %}
+          {{ states(master_temp_sensor) | float(21.0) }}
+        {% else %}
+          {{ state_attr(master_climate, 'current_temperature') | float(21.0) }}
+        {% endif %}
+
+      master_window_open: "{{ is_state(master_window, 'on') }}"
+      master_window_open_minutes: >
+        {% if is_state(master_window, 'on') %}
+          {% set win_state = expand([master_window]) | first %}
+          {% if win_state is not none and win_state.last_changed is defined and win_state.last_changed is not none %}
+            {{ ((as_timestamp(now()) - as_timestamp(win_state.last_changed, as_timestamp(now()))) / 60) | float(0) }}
+          {% else %}
+            0
+          {% endif %}
+        {% else %}
+          0
+        {% endif %}
+      master_window_open_debounced: "{{ (master_window_open | bool(false)) and ((master_window_open_minutes | float(0)) >= 0.5) }}"
+      master_temp_drop_critical: >
+        {{
+          (master_current_temp | float(0))
+          < ((master_comfort_target | float(0)) - (dynamic_safety_tolerance | float(2.0)))
+        }}
+      master_window_open_too_long: "{{ (master_window_open_minutes | float(0)) >= 60 }}"
+      master_dynamic_safety_active: >
+        {{
+          (enable_dynamic_safety | bool(true))
+          and (master_window_open_debounced | bool(false))
+          and (
+            (master_temp_drop_critical | bool(false))
+            or (master_window_open_too_long | bool(false))
+          )
+        }}
+      master_target_final: >
+        {% if not (winter_mode | bool(true)) %}
+          {{ minimum_temp_value }}
+        {% elif (master_dynamic_safety_active | bool(false)) %}
+          {{ minimum_temp_value }}
+        {% else %}
+          {{ master_comfort_target | float(21.0) }}
+        {% endif %}
+
+      room2_window_open_minutes: >
+        {% if room2_window != '' and is_state(room2_window, 'on') %}
+          {% set st = expand([room2_window]) | first %}
+          {% if st is not none and st.last_changed is defined and st.last_changed is not none %}
+            {{ ((as_timestamp(now()) - as_timestamp(st.last_changed, as_timestamp(now()))) / 60) | float(0) }}
+          {% else %}
+            0
+          {% endif %}
+        {% else %}
+          0
+        {% endif %}
+      room2_window_open_debounced: "{{ room2_window != '' and is_state(room2_window, 'on') and ((room2_window_open_minutes | float(0)) >= 0.5) }}"
+      room2_climate_available: "{{ room2_enabled and room2_climate != '' and states(room2_climate) not in ['unknown', 'unavailable'] }}"
+      room2_current_setpoint: "{{ state_attr(room2_climate, 'temperature') | float(0) if room2_climate != '' else 0 }}"
+      room2_current_temp: >
+        {% if room2_temp_sensor != '' and states(room2_temp_sensor) not in ['unknown', 'unavailable', 'none', ''] %}
+          {{ states(room2_temp_sensor) | float(21.0) }}
+        {% elif room2_climate != '' %}
+          {{ state_attr(room2_climate, 'current_temperature') | float(21.0) }}
+        {% else %}
+          21.0
+        {% endif %}
+      room2_final_temp: >
+        {% if not (winter_mode | bool(true)) %}
+          {{ minimum_temp_value }}
+        {% elif room2_window_open_debounced | bool(false) %}
+          {{ minimum_temp_value }}
+        {% else %}
+          {{ room2_comfort | float(20.0) }}
+        {% endif %}
+
+      room3_window_open_minutes: >
+        {% if room3_window != '' and is_state(room3_window, 'on') %}
+          {% set st = expand([room3_window]) | first %}
+          {% if st is not none and st.last_changed is defined and st.last_changed is not none %}
+            {{ ((as_timestamp(now()) - as_timestamp(st.last_changed, as_timestamp(now()))) / 60) | float(0) }}
+          {% else %}
+            0
+          {% endif %}
+        {% else %}
+          0
+        {% endif %}
+      room3_window_open_debounced: "{{ room3_window != '' and is_state(room3_window, 'on') and ((room3_window_open_minutes | float(0)) >= 0.5) }}"
+      room3_climate_available: "{{ room3_enabled and room3_climate != '' and states(room3_climate) not in ['unknown', 'unavailable'] }}"
+      room3_current_setpoint: "{{ state_attr(room3_climate, 'temperature') | float(0) if room3_climate != '' else 0 }}"
+      room3_current_temp: >
+        {% if room3_temp_sensor != '' and states(room3_temp_sensor) not in ['unknown', 'unavailable', 'none', ''] %}
+          {{ states(room3_temp_sensor) | float(21.0) }}
+        {% elif room3_climate != '' %}
+          {{ state_attr(room3_climate, 'current_temperature') | float(21.0) }}
+        {% else %}
+          21.0
+        {% endif %}
+      room3_final_temp: >
+        {% if not (winter_mode | bool(true)) %}
+          {{ minimum_temp_value }}
+        {% elif room3_window_open_debounced | bool(false) %}
+          {{ minimum_temp_value }}
+        {% else %}
+          {{ room3_comfort | float(20.0) }}
+        {% endif %}
+
+      room4_window_open_minutes: >
+        {% if room4_window != '' and is_state(room4_window, 'on') %}
+          {% set st = expand([room4_window]) | first %}
+          {% if st is not none and st.last_changed is defined and st.last_changed is not none %}
+            {{ ((as_timestamp(now()) - as_timestamp(st.last_changed, as_timestamp(now()))) / 60) | float(0) }}
+          {% else %}
+            0
+          {% endif %}
+        {% else %}
+          0
+        {% endif %}
+      room4_window_open_debounced: "{{ room4_window != '' and is_state(room4_window, 'on') and ((room4_window_open_minutes | float(0)) >= 0.5) }}"
+      room4_climate_available: "{{ room4_enabled and room4_climate != '' and states(room4_climate) not in ['unknown', 'unavailable'] }}"
+      room4_current_setpoint: "{{ state_attr(room4_climate, 'temperature') | float(0) if room4_climate != '' else 0 }}"
+      room4_current_temp: >
+        {% if room4_temp_sensor != '' and states(room4_temp_sensor) not in ['unknown', 'unavailable', 'none', ''] %}
+          {{ states(room4_temp_sensor) | float(21.0) }}
+        {% elif room4_climate != '' %}
+          {{ state_attr(room4_climate, 'current_temperature') | float(21.0) }}
+        {% else %}
+          21.0
+        {% endif %}
+      room4_final_temp: >
+        {% if not (winter_mode | bool(true)) %}
+          {{ minimum_temp_value }}
+        {% elif room4_window_open_debounced | bool(false) %}
+          {{ minimum_temp_value }}
+        {% else %}
+          {{ room4_comfort | float(20.0) }}
+        {% endif %}
+
+      room5_window_open_minutes: >
+        {% if room5_window != '' and is_state(room5_window, 'on') %}
+          {% set st = expand([room5_window]) | first %}
+          {% if st is not none and st.last_changed is defined and st.last_changed is not none %}
+            {{ ((as_timestamp(now()) - as_timestamp(st.last_changed, as_timestamp(now()))) / 60) | float(0) }}
+          {% else %}
+            0
+          {% endif %}
+        {% else %}
+          0
+        {% endif %}
+      room5_window_open_debounced: "{{ room5_window != '' and is_state(room5_window, 'on') and ((room5_window_open_minutes | float(0)) >= 0.5) }}"
+      room5_climate_available: "{{ room5_enabled and room5_climate != '' and states(room5_climate) not in ['unknown', 'unavailable'] }}"
+      room5_current_setpoint: "{{ state_attr(room5_climate, 'temperature') | float(0) if room5_climate != '' else 0 }}"
+      room5_current_temp: >
+        {% if room5_temp_sensor != '' and states(room5_temp_sensor) not in ['unknown', 'unavailable', 'none', ''] %}
+          {{ states(room5_temp_sensor) | float(21.0) }}
+        {% elif room5_climate != '' %}
+          {{ state_attr(room5_climate, 'current_temperature') | float(21.0) }}
+        {% else %}
+          21.0
+        {% endif %}
+      room5_final_temp: >
+        {% if not (winter_mode | bool(true)) %}
+          {{ minimum_temp_value }}
+        {% elif room5_window_open_debounced | bool(false) %}
+          {{ minimum_temp_value }}
+        {% else %}
+          {{ room5_comfort | float(20.0) }}
+        {% endif %}
+
+      follower1_window_open_minutes: >
+        {% if follower1_window != '' and is_state(follower1_window, 'on') %}
+          {% set st = expand([follower1_window]) | first %}
+          {% if st is not none and st.last_changed is defined and st.last_changed is not none %}
+            {{ ((as_timestamp(now()) - as_timestamp(st.last_changed, as_timestamp(now()))) / 60) | float(0) }}
+          {% else %}
+            0
+          {% endif %}
+        {% else %}
+          0
+        {% endif %}
+      follower1_window_open_debounced: "{{ follower1_window != '' and is_state(follower1_window, 'on') and ((follower1_window_open_minutes | float(0)) >= 0.5) }}"
+      follower1_climate_available: "{{ follower1_enabled and follower1_climate != '' and states(follower1_climate) not in ['unknown', 'unavailable'] }}"
+      follower1_current_setpoint: "{{ state_attr(follower1_climate, 'temperature') | float(0) if follower1_climate != '' else 0 }}"
+      follower1_final_temp: >
+        {% set raw = (master_target_final | float(21.0)) + (follower1_offset | float(-2.0)) %}
+        {% if not (winter_mode | bool(true)) %}
+          {{ minimum_temp_value }}
+        {% elif follower1_window_open_debounced | bool(false) %}
+          {{ minimum_temp_value }}
+        {% else %}
+          {{ [minimum_temp_value | float(5.0), raw | float(0)] | max }}
+        {% endif %}
+
+      follower2_window_open_minutes: >
+        {% if follower2_window != '' and is_state(follower2_window, 'on') %}
+          {% set st = expand([follower2_window]) | first %}
+          {% if st is not none and st.last_changed is defined and st.last_changed is not none %}
+            {{ ((as_timestamp(now()) - as_timestamp(st.last_changed, as_timestamp(now()))) / 60) | float(0) }}
+          {% else %}
+            0
+          {% endif %}
+        {% else %}
+          0
+        {% endif %}
+      follower2_window_open_debounced: "{{ follower2_window != '' and is_state(follower2_window, 'on') and ((follower2_window_open_minutes | float(0)) >= 0.5) }}"
+      follower2_climate_available: "{{ follower2_enabled and follower2_climate != '' and states(follower2_climate) not in ['unknown', 'unavailable'] }}"
+      follower2_current_setpoint: "{{ state_attr(follower2_climate, 'temperature') | float(0) if follower2_climate != '' else 0 }}"
+      follower2_final_temp: >
+        {% set raw = (master_target_final | float(21.0)) + (follower2_offset | float(-2.0)) %}
+        {% if not (winter_mode | bool(true)) %}
+          {{ minimum_temp_value }}
+        {% elif follower2_window_open_debounced | bool(false) %}
+          {{ minimum_temp_value }}
+        {% else %}
+          {{ [minimum_temp_value | float(5.0), raw | float(0)] | max }}
+        {% endif %}
+
+      master_needs_heat: "{{ (master_current_temp | float(0)) < ((master_target_final | float(0)) - 0.1) }}"
+      room2_needs_heat: "{{ room2_climate_available and ((room2_current_temp | float(0)) < ((room2_final_temp | float(0)) - 0.1)) }}"
+      room3_needs_heat: "{{ room3_climate_available and ((room3_current_temp | float(0)) < ((room3_final_temp | float(0)) - 0.1)) }}"
+      room4_needs_heat: "{{ room4_climate_available and ((room4_current_temp | float(0)) < ((room4_final_temp | float(0)) - 0.1)) }}"
+      room5_needs_heat: "{{ room5_climate_available and ((room5_current_temp | float(0)) < ((room5_final_temp | float(0)) - 0.1)) }}"
+      isolated_rooms_need_heat: >
+        {{
+          (room2_needs_heat | bool(false))
+          or (room3_needs_heat | bool(false))
+          or (room4_needs_heat | bool(false))
+          or (room5_needs_heat | bool(false))
+        }}
+      boiler_should_be_on: >
+        {{
+          (winter_mode | bool(true))
+          and (
+            (master_needs_heat | bool(false))
+            or (isolated_rooms_need_heat | bool(false))
+          )
+        }}
+
+  - choose:
+      - conditions:
+          - "{{ master_climate != '' }}"
+          - "{{ states(master_climate) not in ['unknown', 'unavailable'] }}"
+          - "{{ ((master_target_final | float(0)) - (master_current_setpoint | float(0))) | abs > (write_deadband_value | float(0.2)) }}"
+        sequence:
+          - service: climate.set_temperature
+            target:
+              entity_id: "{{ master_climate }}"
+            data:
+              temperature: "{{ master_target_final | float(0) | round(1) }}"
+            continue_on_error: true
+
+  - choose:
+      - conditions:
+          - "{{ room2_climate_available }}"
+          - "{{ ((room2_final_temp | float(0)) - (room2_current_setpoint | float(0))) | abs > (write_deadband_value | float(0.2)) }}"
+        sequence:
+          - service: climate.set_temperature
+            target:
+              entity_id: "{{ room2_climate }}"
+            data:
+              temperature: "{{ room2_final_temp | float(0) | round(1) }}"
+            continue_on_error: true
+
+  - choose:
+      - conditions:
+          - "{{ room3_climate_available }}"
+          - "{{ ((room3_final_temp | float(0)) - (room3_current_setpoint | float(0))) | abs > (write_deadband_value | float(0.2)) }}"
+        sequence:
+          - service: climate.set_temperature
+            target:
+              entity_id: "{{ room3_climate }}"
+            data:
+              temperature: "{{ room3_final_temp | float(0) | round(1) }}"
+            continue_on_error: true
+
+  - choose:
+      - conditions:
+          - "{{ room4_climate_available }}"
+          - "{{ ((room4_final_temp | float(0)) - (room4_current_setpoint | float(0))) | abs > (write_deadband_value | float(0.2)) }}"
+        sequence:
+          - service: climate.set_temperature
+            target:
+              entity_id: "{{ room4_climate }}"
+            data:
+              temperature: "{{ room4_final_temp | float(0) | round(1) }}"
+            continue_on_error: true
+
+  - choose:
+      - conditions:
+          - "{{ room5_climate_available }}"
+          - "{{ ((room5_final_temp | float(0)) - (room5_current_setpoint | float(0))) | abs > (write_deadband_value | float(0.2)) }}"
+        sequence:
+          - service: climate.set_temperature
+            target:
+              entity_id: "{{ room5_climate }}"
+            data:
+              temperature: "{{ room5_final_temp | float(0) | round(1) }}"
+            continue_on_error: true
+
+  - choose:
+      - conditions:
+          - "{{ follower1_climate_available }}"
+          - "{{ ((follower1_final_temp | float(0)) - (follower1_current_setpoint | float(0))) | abs > (write_deadband_value | float(0.2)) }}"
+        sequence:
+          - service: climate.set_temperature
+            target:
+              entity_id: "{{ follower1_climate }}"
+            data:
+              temperature: "{{ follower1_final_temp | float(0) | round(1) }}"
+            continue_on_error: true
+
+  - choose:
+      - conditions:
+          - "{{ follower2_climate_available }}"
+          - "{{ ((follower2_final_temp | float(0)) - (follower2_current_setpoint | float(0))) | abs > (write_deadband_value | float(0.2)) }}"
+        sequence:
+          - service: climate.set_temperature
+            target:
+              entity_id: "{{ follower2_climate }}"
+            data:
+              temperature: "{{ follower2_final_temp | float(0) | round(1) }}"
+            continue_on_error: true
+
+  - choose:
+      - conditions:
+          - "{{ boiler_switch_entity != '' }}"
+          - "{{ boiler_should_be_on | bool(false) }}"
+          - "{{ states(boiler_switch_entity) != 'on' }}"
+        sequence:
+          - service: homeassistant.turn_on
+            target:
+              entity_id: "{{ boiler_switch_entity }}"
+            continue_on_error: true
+      - conditions:
+          - "{{ boiler_switch_entity != '' }}"
+          - "{{ not (boiler_should_be_on | bool(false)) }}"
+          - "{{ states(boiler_switch_entity) == 'on' }}"
+        sequence:
+          - service: homeassistant.turn_off
+            target:
+              entity_id: "{{ boiler_switch_entity }}"
+            continue_on_error: true
+
+  - choose:
+      - conditions:
+          - "{{ enable_debug_log | bool(false) }}"
+        sequence:
+          - service: system_log.write
+            data:
+              level: info
+              logger: homeassistant.components.automation.vaillant_core_heating_v2
+              message: >
+                {{ log_prefix }} MasterTarget={{ master_target_final | round(1) }}
+                MasterTemp={{ master_current_temp | round(1) }}
+                Safety={{ master_dynamic_safety_active }}
+                Boiler={{ boiler_should_be_on }}
+                IsolatedDemand={{ isolated_rooms_need_heat }}
+            continue_on_error: true
