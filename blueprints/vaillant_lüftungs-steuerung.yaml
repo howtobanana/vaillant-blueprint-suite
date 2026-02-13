@@ -17,7 +17,7 @@ blueprint:
     **Autor:** bananapower | **Version:** 1.0 (Microservices Edition)
 
   domain: automation
-  source_url: https://raw.githubusercontent.com/howtobanana/vaillant-blueprint/main/vaillant_ventilation.yaml
+  source_url: https://raw.githubusercontent.com/howtobanana/vaillant-blueprint/main/blueprints/vaillant_l%C3%BCftungs-steuerung.yaml
   author: "bananapower"
 
   input:

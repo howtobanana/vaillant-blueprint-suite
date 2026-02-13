@@ -17,7 +17,7 @@ blueprint:
     **Autor:** bananapower | **Version:** 1.0 (Microservices Edition)
 
   domain: automation
-  source_url: https://raw.githubusercontent.com/howtobanana/vaillant-blueprint/main/vaillant_core_heating.yaml
+  source_url: https://raw.githubusercontent.com/howtobanana/vaillant-blueprint/main/blueprints/vaillant_heizungs-steuerung.yaml
   author: "bananapower"
 
   input:

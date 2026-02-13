@@ -18,7 +18,7 @@ blueprint:
     **Autor:** bananapower | **Version:** 1.0 (Microservices Edition)
 
   domain: automation
-  source_url: https://raw.githubusercontent.com/howtobanana/vaillant-blueprint/main/vaillant_health_monitor.yaml
+  source_url: https://raw.githubusercontent.com/howtobanana/vaillant-blueprint/main/blueprints/vaillant_system-diagnose.yaml
   author: "bananapower"
 
   input:

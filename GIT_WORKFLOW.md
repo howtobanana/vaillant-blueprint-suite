@@ -1,9 +1,12 @@
-# Git Workflow (Vaillant Blueprints)
+# Git Workflow (Vaillant Blueprint Suite)
 
-This repository is now version-controlled to prevent accidental loss during refactors.
+This repository is version-controlled to prevent accidental loss during refactors.
 
-## Active Core File
-- `vaillant_core_heating_v2.yaml`
+## Active Suite Blueprints
+- `blueprints/vaillant_heizungs-steuerung.yaml`
+- `blueprints/vaillant_geofencing.yaml`
+- `blueprints/vaillant_lüftungs-steuerung.yaml`
+- `blueprints/vaillant_system-diagnose.yaml`
 
 ## Safety Rules
 - Commit before and after every substantial refactor.
@@ -22,7 +25,7 @@ This repository is now version-controlled to prevent accidental loss during refa
 ```bash
 git status
 git diff
-ruby -e "require 'yaml'; YAML.load_file('vaillant_core_heating_v2.yaml'); puts 'YAML OK'"
+ruby -e "require 'yaml'; YAML.load_file('blueprints/vaillant_heizungs-steuerung.yaml'); puts 'YAML OK'"
 git add -A
 git commit -m "Describe change"
 ```
