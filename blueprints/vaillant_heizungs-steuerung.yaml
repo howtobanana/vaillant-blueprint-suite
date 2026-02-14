@@ -31,17 +31,20 @@ blueprint:
 
   input:
     section_global:
-      name: "🌍 Wettergeführte Regelung"
+      name: "🌍 Basisparameter"
       description: |
-        Ersetzt teure Hardware-Fühler durch intelligente Software-Sensoren.
-        Hinweis: Temperatur-Helper sind optional; ohne Helper werden die Fix-Werte verwendet.
+
+        Grundlegende Einstellungen für Wetterfühler, Sommer-Logik, Abwesenheitsstatus und API-Limits.
+        Diese Parameter definieren globale Grenzen und Fallback-Werte der Regelung.
+
       collapsed: false
       input:
         outdoor_temp_sensor:
           name: "🌡️ Außentemperatur"
           description: |
-            Optional für Sommer/Frostschutz (z.B. sensor.vaillant_outside_temperature).
-            Hinweis: Ohne Sensor gibt es keine Sommer‑Abschaltung und keinen Frost‑Delay‑Hinweis.
+
+            Optionaler Außentemperatursensor für Sommermodus, Frostlogik und Wetterkompensation.
+
           default: ""
           selector:
             entity:
@@ -50,7 +53,9 @@ blueprint:
         summer_threshold:
           name: "🌡️ Sommer-Grenzwert (°C)"
           description: |
-            Wert: Heizung aus ab Außentemp.
+
+            Schwellwert für den Sommer-Modus. Oberhalb dieses Werts wird Heizbetrieb reduziert.
+
           default: 18
           selector:
             number:
@@ -61,7 +66,9 @@ blueprint:
         summer_hysteresis:
           name: "↕️ Sommer-Hysterese (°C)"
           description: |
-            Verhindert Takten im Sommer: EIN bei Schwelle, AUS erst unter (Schwelle - Hysterese).
+
+            Verhindert schnelles Takten im Grenzbereich. Hysterese für den Sommer-Modus.
+
           default: 1.0
           selector:
             number:
@@ -72,8 +79,10 @@ blueprint:
         panic_mode_enabled:
           name: "🚨 Panic Mode Helper (opt)"
           description: |
-            Optionaler input_boolean als Notfall-Override.
-            ON erzwingt Komforttemperatur am Master (ignoriert Eco/Schedule).
+
+            Globaler Notfall-Schalter. Erzwingt Komfort-Temperatur bei Sensor-Ausfall.
+            Erforderlicher Helfer-Typ: **Umschalter** (input_boolean).
+
           default: ""
           selector:
             entity:
@@ -81,7 +90,10 @@ blueprint:
         eco_temp_input:
           name: "🌡️ Eco-Temp Helper (opt)"
           description: |
-            Helper erstellen: input_number für Eco (z.B. input_number.vaillant_eco_temp).
+
+            Optionaler Helper für die Eco-Solltemperatur. Überschreibt den Fixwert.
+            Erforderlicher Helfer-Typ: **Schieberegler** (input_number).
+
           default: ""
           selector:
             entity:
@@ -89,7 +101,9 @@ blueprint:
         eco_temp_fixed:
           name: "🌡️ Eco-Temp Fix (°C)"
           description: |
-            Wert: Fallback ohne Slider/Schedule.
+
+            Fallback-Solltemperatur für Eco-Betrieb ohne Helper.
+
           default: 19
           selector:
             number:
@@ -100,7 +114,10 @@ blueprint:
         away_temp_input:
           name: "🌡️ Away-Temp Helper (opt)"
           description: |
-            Helper erstellen: input_number für Away (z.B. input_number.vaillant_away_temp).
+
+            Optionaler Helper für die Away-Solltemperatur. Überschreibt den Fixwert.
+            Erforderlicher Helfer-Typ: **Schieberegler** (input_number).
+
           default: ""
           selector:
             entity:
@@ -108,7 +125,9 @@ blueprint:
         away_temp_fixed:
           name: "🌡️ Away-Temp Fix (°C)"
           description: |
-            Wert: Fallback für lange Abwesenheit.
+
+            Fallback-Solltemperatur für Abwesenheitsbetrieb ohne Helper.
+
           default: 16
           selector:
             number:
@@ -117,41 +136,46 @@ blueprint:
               step: 0.5
               unit_of_measurement: "°C"
 
-    section_away_state:
-      name: "🏠 Away-Status"
-      description: |
-        Externer Away-Status (z.B. via separater Geofencing-Automation).
-        Diese Core-Blueprint berechnet keine Präsenz selbst.
-        Wichtig: Verwenden Sie exakt denselben Away-Helper wie in Modul 4.
-      collapsed: true
-      input:
         away_mode_boolean:
           name: "Away-Mode Helper (input_boolean)"
-          description: >
-            Der globale Schalter für Abwesend. Schaltet SOFORT auf Away-Temp (ignoriert Eco-Limit).
-            Pflicht für Modul-Verbund mit Geofencing.
-            So erstellen Sie ihn: Einstellungen → Geräte & Dienste → Helfer → Helfer erstellen → Umschalter (input_boolean).
-            Beispiel-Entity: input_boolean.away_mode.
-            ℹ️ Tipp: Wird idealerweise vom Modul "4. Geofencing Manager" automatisch geschaltet.
-            (Ideal gesteuert durch Modul 4 Geofencing)
+          description: |
+
+            Globaler Abwesenheits-Schalter. Aktiviert sofort den Away-Sollwert. Mehrere Entitys werden als ODER ausgewertet.
+            Erforderlicher Helfer-Typ: **Umschalter** (input_boolean).
+
           default: []
           selector:
             entity:
               domain: input_boolean
               multiple: true
+        max_changes_per_hour:
+          name: "🔧 Max Änderungen/h"
+          description: |
+
+            Maximale Anzahl Master-Schreibvorgänge pro Stunde zur API-Entlastung.
+
+          default: 3
+          selector:
+            number:
+              min: 2
+              max: 6
+              step: 1
+
     section_master:
-      name: "🏠 Master‑Raum 1 (Beispiel: Wohnzimmer)"
+      name: "🏠 Master-Raum"
       description: |
-        Haupt-Therme und zentrale Komfort-Logik für das gesamte System.
-        Für produktiven Betrieb ist der Master-Thermostat erforderlich.
-        Ohne Master-Entity läuft die Automation zwar weiter (Monitoring/Logik), steuert aber keine Master-Setpoints.
+
+        Parameter für den führenden Master-Raum und die zentrale Sollwertstrategie.
+        Der Master-Thermostat ist die primäre Schnittstelle zur Heizungsanlage.
+
       collapsed: false
       input:
         master_climate:
           name: "♨️ Master Thermostat (Pflicht)"
           description: |
-            Zentrale Vaillant-Therme (z.B. climate.vaillant_vrc_700).
-            Pflichtfeld für die eigentliche Heizungsregelung.
+
+            Erforderlicher Master-Thermostat. Primäres Zielsystem für Sollwertvorgaben.
+
           default: ""
           selector:
             entity:
@@ -159,7 +183,10 @@ blueprint:
         master_comfort_input:
           name: "🌡️ Master Komfort Helper (opt)"
           description: |
-            Helper erstellen: input_number für Komfort (z.B. input_number.vaillant_master_comfort).
+
+            Optionaler Helper für die Komfort-Solltemperatur des Master-Raums.
+            Erforderlicher Helfer-Typ: **Schieberegler** (input_number).
+
           default: ""
           selector:
             entity:
@@ -167,7 +194,9 @@ blueprint:
         master_comfort_fixed:
           name: "🌡️ Master Komfort Fix (°C)"
           description: |
-            Wert: Fallback Komfort-Temp.
+
+            Fallback-Komforttemperatur des Master-Raums ohne Helper.
+
           default: 20.5
           selector:
             number:
@@ -178,7 +207,9 @@ blueprint:
         master_schedule:
           name: "🗓️ Master Zeitplan"
           description: |
-            Schedule für Komfort (z.B. schedule.wohnzimmer_heizplan).
+
+            Optionaler Zeitplan für den Komfortbetrieb im Master-Raum.
+
           default: ""
           selector:
             entity:
@@ -186,7 +217,9 @@ blueprint:
         master_presence_sensors:
           name: "👀 Master Präsenz"
           description: |
-            Bewegung für Komfort.
+
+            Optionale Präsenzsensoren für bedarfsgeführten Komfortbetrieb im Master-Raum.
+
           default: []
           selector:
             entity:
@@ -196,7 +229,9 @@ blueprint:
         presence_activation_delay:
           name: "⏱️ Präsenz Aktivierung (min)"
           description: |
-            Wert: Verzögerung bis Heizen.
+
+            Verzögerung bis Präsenz als aktiv bewertet wird.
+
           default: 2
           selector:
             number:
@@ -207,7 +242,9 @@ blueprint:
         presence_deactivation_delay:
           name: "⏱️ Präsenz Nachlauf (min)"
           description: |
-            Wert: Nachlauf bis Eco.
+
+            Nachlaufzeit bis Rückfall auf Eco nach letzter Präsenz.
+
           default: 30
           selector:
             number:
@@ -218,33 +255,29 @@ blueprint:
         enable_master_presence_priority:
           name: "👑 Master gewinnt bei Präsenz"
           description: |
-            Wenn Master-Präsenz aktiv ist, dürfen isolierte Räume den Master-Sollwert nicht übersteuern.
+
+            Aktiviert Vorrang des Master-Raums gegenüber isolierten Räumen bei Präsenz.
+
           default: false
           selector:
             boolean:
         master_presence_priority_helper:
           name: "🧩 Master-Priorität Helper (opt)"
           description: |
-            Optionaler input_boolean zur Laufzeitsteuerung von "Master gewinnt bei Präsenz".
-            Wenn gesetzt, gilt: ON = Master hat Vorrang, OFF = andere Räume dürfen übersteuern.
-            Der Helper überschreibt den statischen Toggle oben.
+
+            Optionaler Laufzeit-Override für Master-Priorität. ON = Vorrang aktiv.
+            Erforderlicher Helfer-Typ: **Umschalter** (input_boolean).
+
           default: ""
           selector:
             entity:
               domain: input_boolean
-        master_window:
-          name: "🪟 Master Fensterkontakt"
-          description: |
-            Fenster offen = Frostschutz.
-          default: ""
-          selector:
-            entity:
-              domain: binary_sensor
-              device_class: window
         master_smart_window:
           name: "🧠 Master Smart-Fenster (opt)"
           description: |
-            Optional: Virtueller Sensor (z.B. Temperaturabfall-Erkennung). Fenster gilt als offen, wenn dieser ODER der Hardware-Sensor "ON" ist.
+
+            Optionaler virtueller Fenstersensor. Wird logisch ODER mit dem Hardwarekontakt verknüpft.
+
           default: ""
           selector:
             entity:
@@ -252,7 +285,9 @@ blueprint:
         master_temp_sensor:
           name: "🌡️ Master Temperatursensor"
           description: |
-            Externer Raumfühler.
+
+            Optionaler externer Temperatursensor des Master-Raums.
+
           default: ""
           selector:
             entity:
@@ -261,431 +296,48 @@ blueprint:
         master_humidity_sensor:
           name: "💧 Master Feuchte"
           description: |
-            Luftfeuchte im Master (z.B. sensor.vaillant_vrc_700_humidity).
+
+            Optionaler Luftfeuchtesensor für Feuchtekompensation im Master-Raum.
+
           default: ""
           selector:
             entity:
               domain: sensor
               device_class: humidity
-    section_room2:
-      name: "🛏️ Raum 2 (Beispiel: Schlafzimmer)"
-      description: |
-        Isolierte Räume mit eigener Heizlogik (Schedule/Präsenz).
-        Diese Räume können den Master-Sollwert hochziehen, wenn sie aktiv geheizt werden.
-        Ideal für: Schlafzimmer, Office, Küche, Bad.
-      collapsed: true
-      input:
-        room2_enabled:
-          name: "🔘 Aktiv"
-          description: |
-            Schalter: Raum 2 einbinden.
-          default: false
-          selector:
-            boolean:
-        room2_climate:
-          name: "♨️ TRV"
-          description: |
-            TRV für diesen isolierten Raum (z.B. climate.schlafzimmer_trv).
-          default: ""
-          selector:
-            entity:
-              domain: climate
-        room2_comfort_input:
-          name: "🌡️ Komfort Helper (opt)"
-          description: |
-            Helper erstellen: input_number für Komfort (z.B. input_number.schlafzimmer_comfort).
-          default: ""
-          selector:
-            entity:
-              domain: input_number
-        room2_comfort_fixed:
-          name: "🌡️ Komfort Fix (°C)"
-          description: |
-            Wert: Fallback Komfort.
-          default: 21.0
-          selector:
-            number:
-              min: 18
-              max: 24
-              step: 0.5
-              unit_of_measurement: "°C"
-        room2_schedule:
-          name: "🗓️ Zeitplan"
-          description: |
-            Schedule für Komfort (z.B. schedule.schlafzimmer_heizplan).
-          default: ""
-          selector:
-            entity:
-              domain: schedule
-        room2_presence_sensors:
-          name: "👀 Präsenz"
-          description: |
-            Bewegung für Komfort.
-          default: []
-          selector:
-            entity:
-              domain: binary_sensor
-              device_class: occupancy
-              multiple: true
-        room2_presence_delay:
-          name: "⏱️ Nachlauf (min)"
-          description: |
-            Wert: Nachlauf bis Eco.
-          default: 30
-          selector:
-            number:
-              min: 15
-              max: 120
-              step: 5
-              unit_of_measurement: "min"
-        room2_window:
-          name: "🪟 Fenster"
-          description: |
-            Fenster offen = Frostschutz.
-          default: ""
-          selector:
-            entity:
-              domain: binary_sensor
-              device_class: window
-        room2_smart_window:
-          name: "🧠 Smart-Fenster (opt)"
-          description: |
-            Optional: Virtueller Sensor (z.B. Temperaturabfall-Erkennung). Fenster gilt als offen, wenn dieser ODER der Hardware-Sensor "ON" ist.
-          default: ""
-          selector:
-            entity:
-              domain: binary_sensor
-        room2_temp_sensor:
-          name: "🌡️ Temperatursensor"
-          description: |
-            Externer Raumfühler.
-          default: ""
-          selector:
-            entity:
-              domain: sensor
-              device_class: temperature
-    section_room3:
-      name: "💻 Raum 3 (Beispiel: Office)"
-      description: |
-        Isolierte Räume mit eigener Heizlogik (Schedule/Präsenz).
-        Diese Räume können den Master-Sollwert hochziehen, wenn sie aktiv geheizt werden.
-        Ideal für: Schlafzimmer, Office, Küche, Bad.
-      collapsed: true
-      input:
-        room3_enabled:
-          name: "🔘 Aktiv"
-          description: |
-            Schalter: Raum 3 einbinden.
-          default: false
-          selector:
-            boolean:
-        room3_climate:
-          name: "♨️ TRV"
-          description: |
-            TRV für diesen isolierten Raum (z.B. climate.schlafzimmer_trv).
-          default: ""
-          selector:
-            entity:
-              domain: climate
-        room3_comfort_input:
-          name: "🌡️ Komfort Helper (opt)"
-          description: |
-            Helper erstellen: input_number für Komfort (z.B. input_number.kueche_comfort).
-          default: ""
-          selector:
-            entity:
-              domain: input_number
-        room3_comfort_fixed:
-          name: "🌡️ Komfort Fix (°C)"
-          description: |
-            Wert: Fallback Komfort.
-          default: 20.0
-          selector:
-            number:
-              min: 18
-              max: 24
-              step: 0.5
-              unit_of_measurement: "°C"
-        room3_schedule:
-          name: "🗓️ Zeitplan"
-          description: |
-            Schedule für Komfort (z.B. schedule.kueche_heizplan).
-          default: ""
-          selector:
-            entity:
-              domain: schedule
-        room3_presence_sensors:
-          name: "👀 Präsenz"
-          description: |
-            Bewegung für Komfort.
-          default: []
-          selector:
-            entity:
-              domain: binary_sensor
-              device_class: occupancy
-              multiple: true
-        room3_presence_delay:
-          name: "⏱️ Nachlauf (min)"
-          description: |
-            Wert: Nachlauf bis Eco.
-          default: 30
-          selector:
-            number:
-              min: 15
-              max: 120
-              step: 5
-              unit_of_measurement: "min"
-        room3_window:
-          name: "🪟 Fenster"
-          description: |
-            Fenster offen = Frostschutz.
-          default: ""
-          selector:
-            entity:
-              domain: binary_sensor
-              device_class: window
-        room3_smart_window:
-          name: "🧠 Smart-Fenster (opt)"
-          description: |
-            Optional: Virtueller Sensor (z.B. Temperaturabfall-Erkennung). Fenster gilt als offen, wenn dieser ODER der Hardware-Sensor "ON" ist.
-          default: ""
-          selector:
-            entity:
-              domain: binary_sensor
-        room3_temp_sensor:
-          name: "🌡️ Temperatursensor"
-          description: |
-            Externer Raumfühler.
-          default: ""
-          selector:
-            entity:
-              domain: sensor
-              device_class: temperature
-    section_room4:
-      name: "🛁 Raum 4 (Beispiel: Badezimmer)"
-      description: |
-        Isolierte Räume mit eigener Heizlogik (Schedule/Präsenz).
-        Diese Räume können den Master-Sollwert hochziehen, wenn sie aktiv geheizt werden.
-        Ideal für: Schlafzimmer, Office, Küche, Bad.
-      collapsed: true
-      input:
-        room4_enabled:
-          name: "🔘 Aktiv"
-          description: |
-            Schalter: Raum 4 einbinden.
-          default: false
-          selector:
-            boolean:
-        room4_climate:
-          name: "♨️ TRV"
-          description: |
-            TRV für diesen isolierten Raum (z.B. climate.schlafzimmer_trv).
-          default: ""
-          selector:
-            entity:
-              domain: climate
-        room4_comfort_input:
-          name: "🌡️ Komfort Helper (opt)"
-          description: |
-            Helper erstellen: input_number für Komfort (z.B. input_number.bad_comfort).
-          default: ""
-          selector:
-            entity:
-              domain: input_number
-        room4_comfort_fixed:
-          name: "🌡️ Komfort Fix (°C)"
-          description: |
-            Wert: Fallback Komfort.
-          default: 22.0
-          selector:
-            number:
-              min: 18
-              max: 24
-              step: 0.5
-              unit_of_measurement: "°C"
-        room4_schedule:
-          name: "🗓️ Zeitplan"
-          description: |
-            Schedule für Komfort (z.B. schedule.bad_heizplan).
-          default: ""
-          selector:
-            entity:
-              domain: schedule
-        room4_presence_sensors:
-          name: "👀 Präsenz"
-          description: |
-            Bewegung für Komfort.
-          default: []
-          selector:
-            entity:
-              domain: binary_sensor
-              device_class: occupancy
-              multiple: true
-        room4_presence_delay:
-          name: "⏱️ Nachlauf (min)"
-          description: |
-            Wert: Nachlauf bis Eco.
-          default: 20
-          selector:
-            number:
-              min: 15
-              max: 120
-              step: 5
-              unit_of_measurement: "min"
-        room4_window:
-          name: "🪟 Fenster"
-          description: |
-            Fenster offen = Frostschutz.
-          default: ""
-          selector:
-            entity:
-              domain: binary_sensor
-              device_class: window
-        room4_smart_window:
-          name: "🧠 Smart-Fenster (opt)"
-          description: |
-            Optional: Virtueller Sensor (z.B. Temperaturabfall-Erkennung). Fenster gilt als offen, wenn dieser ODER der Hardware-Sensor "ON" ist.
-          default: ""
-          selector:
-            entity:
-              domain: binary_sensor
-        room4_temp_sensor:
-          name: "🌡️ Temperatursensor"
-          description: |
-            Externer Raumfühler.
-          default: ""
-          selector:
-            entity:
-              domain: sensor
-              device_class: temperature
-    section_room5:
-      name: "🍳 Raum 5 (Beispiel: Küche)"
-      description: |
-        Isolierte Räume mit eigener Heizlogik (Schedule/Präsenz).
-        Diese Räume können den Master-Sollwert hochziehen, wenn sie aktiv geheizt werden.
-        Ideal für: Schlafzimmer, Office, Küche, Bad.
-      collapsed: true
-      input:
-        room5_enabled:
-          name: "🔘 Aktiv"
-          description: |
-            Schalter: Raum 5 einbinden.
-          default: false
-          selector:
-            boolean:
-        room5_climate:
-          name: "♨️ TRV"
-          description: |
-            TRV für diesen isolierten Raum (z.B. climate.schlafzimmer_trv).
-          default: ""
-          selector:
-            entity:
-              domain: climate
-        room5_comfort_input:
-          name: "🌡️ Komfort Helper (opt)"
-          description: |
-            Helper erstellen: input_number für Komfort (z.B. input_number.buero_comfort).
-          default: ""
-          selector:
-            entity:
-              domain: input_number
-        room5_comfort_fixed:
-          name: "🌡️ Komfort Fix (°C)"
-          description: |
-            Wert: Fallback Komfort.
-          default: 21.0
-          selector:
-            number:
-              min: 18
-              max: 24
-              step: 0.5
-              unit_of_measurement: "°C"
-        room5_schedule:
-          name: "🗓️ Zeitplan"
-          description: |
-            Schedule für Komfort (z.B. schedule.buero_heizplan).
-          default: ""
-          selector:
-            entity:
-              domain: schedule
-        room5_presence_sensors:
-          name: "👀 Präsenz"
-          description: |
-            Bewegung für Komfort.
-          default: []
-          selector:
-            entity:
-              domain: binary_sensor
-              device_class: occupancy
-              multiple: true
-        room5_presence_delay:
-          name: "⏱️ Nachlauf (min)"
-          description: |
-            Wert: Nachlauf bis Eco.
-          default: 45
-          selector:
-            number:
-              min: 15
-              max: 120
-              step: 5
-              unit_of_measurement: "min"
-        room5_window:
-          name: "🪟 Fenster"
-          description: |
-            Fenster offen = Frostschutz.
-          default: ""
-          selector:
-            entity:
-              domain: binary_sensor
-              device_class: window
-        room5_smart_window:
-          name: "🧠 Smart-Fenster (opt)"
-          description: |
-            Optional: Virtueller Sensor (z.B. Temperaturabfall-Erkennung). Fenster gilt als offen, wenn dieser ODER der Hardware-Sensor "ON" ist.
-          default: ""
-          selector:
-            entity:
-              domain: binary_sensor
-        room5_temp_sensor:
-          name: "🌡️ Temperatursensor"
-          description: |
-            Externer Raumfühler.
-          default: ""
-          selector:
-            entity:
-              domain: sensor
-              device_class: temperature
 
-    section_follower_rooms:
-      name: "🚶 Master-Follower Räume (z.B. Gang)"
+    section_follower_1:
+      name: "🔗 Verbundener Raum 1 (z.B. Flur)"
       description: |
-        Räume, die nur dem Master folgen und NICHT den Master hochziehen können.
-        Sie setzen ihren TRV-Setpoint niedriger (z.B. -2°C unter Master).
 
-        ⚠️ Wichtig: Follower-Räume haben KEINE eigene Präsenz/Schedule-Logik.
-        Sie folgen immer dem Master-Raum (Wohnzimmer).
+        Verbundener Raum folgt dem Master-Sollwert mit Offset.
+        Der Raum erhöht den Master-Sollwert nicht.
 
-        Ideal für: Gänge, Nebenräume, Abstellräume mit niedrigerer Soll-Temperatur.
       collapsed: true
       input:
         follower1_enabled:
           name: "🔘 Follower 1 Aktiv"
           description: |
-            Schalter: Follower-Raum 1 einbinden.
+
+            Aktiviert die Regelung für Follower-Raum 1.
+
           default: false
           selector:
             boolean:
         follower1_name:
           name: "📝 Follower 1 Name (opt)"
           description: |
-            Optional: Name für UI/Logs (z.B. "Gang", "Abstellraum").
+
+            Optionaler Anzeigename für UI und Protokollierung von Follower-Raum 1.
+
           default: ""
           selector:
             text:
         follower1_climate:
           name: "♨️ Follower 1 TRV"
           description: |
-            TRV für Follower-Raum 1 (z.B. climate.gang_trv).
+
+            TRV/Thermostat für Follower-Raum 1.
+
           default: ""
           selector:
             entity:
@@ -693,8 +345,9 @@ blueprint:
         follower1_offset:
           name: "↘️ Follower 1 Offset (°C)"
           description: |
-            Negativer Offset zum Master-Wert.
-            (Bsp: Master 21°C - 2°C Offset = 19°C). Passiver Raum.
+
+            Temperatur-Offset relativ zum Master-Sollwert für Follower-Raum 1. Negative Werte senken den Sollwert.
+
           default: -2.0
           selector:
             number:
@@ -705,7 +358,9 @@ blueprint:
         follower1_window:
           name: "🪟 Follower 1 Fenster (opt)"
           description: |
-            Fenster offen = Frostschutz (12°C).
+
+            Optionaler Fensterkontakt für Sicherheitsabsenkung in Follower-Raum 1.
+
           default: ""
           selector:
             entity:
@@ -714,31 +369,49 @@ blueprint:
         follower1_temp_sensor:
           name: "🌡️ Follower 1 Temperatursensor (opt)"
           description: |
-            Externer Raumfühler (optional).
+
+            Optionaler externer Temperatursensor für Follower-Raum 1.
+
           default: ""
           selector:
             entity:
               domain: sensor
               device_class: temperature
 
+
+    section_follower_2:
+      name: "🔗 Verbundener Raum 2 (z.B. WC)"
+      description: |
+
+        Verbundener Raum folgt dem Master-Sollwert mit Offset.
+        Der Raum erhöht den Master-Sollwert nicht.
+
+      collapsed: true
+      input:
         follower2_enabled:
           name: "🔘 Follower 2 Aktiv"
           description: |
-            Schalter: Follower-Raum 2 einbinden.
+
+            Aktiviert die Regelung für Follower-Raum 2.
+
           default: false
           selector:
             boolean:
         follower2_name:
           name: "📝 Follower 2 Name (opt)"
           description: |
-            Optional: Name für UI/Logs (z.B. "Vorzimmer").
+
+            Optionaler Anzeigename für UI und Protokollierung von Follower-Raum 2.
+
           default: ""
           selector:
             text:
         follower2_climate:
           name: "♨️ Follower 2 TRV"
           description: |
-            TRV für Follower-Raum 2.
+
+            TRV/Thermostat für Follower-Raum 2.
+
           default: ""
           selector:
             entity:
@@ -746,8 +419,9 @@ blueprint:
         follower2_offset:
           name: "↘️ Follower 2 Offset (°C)"
           description: |
-            Negativer Offset zum Master-Wert.
-            (Bsp: Master 21°C - 2°C Offset = 19°C). Passiver Raum.
+
+            Temperatur-Offset relativ zum Master-Sollwert für Follower-Raum 2. Negative Werte senken den Sollwert.
+
           default: -2.0
           selector:
             number:
@@ -758,7 +432,9 @@ blueprint:
         follower2_window:
           name: "🪟 Follower 2 Fenster (opt)"
           description: |
-            Fenster offen = Frostschutz (12°C).
+
+            Optionaler Fensterkontakt für Sicherheitsabsenkung in Follower-Raum 2.
+
           default: ""
           selector:
             entity:
@@ -767,39 +443,512 @@ blueprint:
         follower2_temp_sensor:
           name: "🌡️ Follower 2 Temperatursensor (opt)"
           description: |
-            Externer Raumfühler (optional).
+
+            Optionaler externer Temperatursensor für Follower-Raum 2.
+
           default: ""
           selector:
             entity:
               domain: sensor
               device_class: temperature
 
-    section_control:
-      name: "🧰 Heizungs-Regelung"
+
+    section_room2:
+      name: "🛏️ Raum 2"
       description: |
-        API-Cooldown und Änderungsrate für den Master-Write.
-      collapsed: false
+
+        Isolierter Raum mit eigener Komfortlogik über Zeitplan und Präsenz.
+        Aktive Raumanforderung kann den Master-Sollwert anheben.
+
+      collapsed: true
       input:
-        max_changes_per_hour:
-          name: "🔧 Max Änderungen/h"
+        room2_enabled:
+          name: "🔘 Aktiv"
           description: |
-            Wert: API-Cooldown pro Stunde.
-          default: 3
+
+            Aktiviert die Regelung für Raum 2.
+
+          default: false
+          selector:
+            boolean:
+        room2_climate:
+          name: "♨️ TRV"
+          description: |
+
+            TRV/Thermostat für Raum 2.
+
+          default: ""
+          selector:
+            entity:
+              domain: climate
+        room2_comfort_input:
+          name: "🌡️ Komfort Helper (opt)"
+          description: |
+
+            Optionaler Helper für die Komfort-Solltemperatur in Raum 2.
+            Erforderlicher Helfer-Typ: **Schieberegler** (input_number).
+
+          default: ""
+          selector:
+            entity:
+              domain: input_number
+        room2_comfort_fixed:
+          name: "🌡️ Komfort Fix (°C)"
+          description: |
+
+            Fallback-Komforttemperatur in Raum 2 ohne Helper.
+
+          default: 21.0
           selector:
             number:
-              min: 2
-              max: 6
-              step: 1
-    section_smart_functions:
-      name: "🧠 Smarte Funktionen & Logik"
+              min: 18
+              max: 24
+              step: 0.5
+              unit_of_measurement: "°C"
+        room2_schedule:
+          name: "🗓️ Zeitplan"
+          description: |
+
+            Optionaler Zeitplan für Komfortbetrieb in Raum 2.
+
+          default: ""
+          selector:
+            entity:
+              domain: schedule
+        room2_presence_sensors:
+          name: "👀 Präsenz"
+          description: |
+
+            Optionale Präsenzsensoren für Komfortfreigabe in Raum 2.
+
+          default: []
+          selector:
+            entity:
+              domain: binary_sensor
+              device_class: occupancy
+              multiple: true
+        room2_presence_delay:
+          name: "⏱️ Nachlauf (min)"
+          description: |
+
+            Nachlaufzeit bis Rückfall auf Eco in Raum 2.
+
+          default: 30
+          selector:
+            number:
+              min: 15
+              max: 120
+              step: 5
+              unit_of_measurement: "min"
+        room2_window:
+          name: "🪟 Fenster"
+          description: |
+
+            Fensterkontakt in Raum 2 für Sicherheitsabsenkung.
+
+          default: ""
+          selector:
+            entity:
+              domain: binary_sensor
+              device_class: window
+        room2_smart_window:
+          name: "🧠 Smart-Fenster (opt)"
+          description: |
+
+            Optionaler virtueller Fenstersensor in Raum 2. Wird mit Hardwarekontakt logisch ODER verknüpft.
+
+          default: ""
+          selector:
+            entity:
+              domain: binary_sensor
+        room2_temp_sensor:
+          name: "🌡️ Temperatursensor"
+          description: |
+
+            Optionaler externer Temperatursensor für Raum 2.
+
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+
+    section_room3:
+      name: "💻 Raum 3"
       description: |
-        Erweiterte Logik-Bausteine für Fensterverhalten, Regelstabilität und adaptive Sollwerte.
+
+        Isolierter Raum mit eigener Komfortlogik über Zeitplan und Präsenz.
+        Aktive Raumanforderung kann den Master-Sollwert anheben.
+
+      collapsed: true
+      input:
+        room3_enabled:
+          name: "🔘 Aktiv"
+          description: |
+
+            Aktiviert die Regelung für Raum 3.
+
+          default: false
+          selector:
+            boolean:
+        room3_climate:
+          name: "♨️ TRV"
+          description: |
+
+            TRV/Thermostat für Raum 3.
+
+          default: ""
+          selector:
+            entity:
+              domain: climate
+        room3_comfort_input:
+          name: "🌡️ Komfort Helper (opt)"
+          description: |
+
+            Optionaler Helper für die Komfort-Solltemperatur in Raum 3.
+            Erforderlicher Helfer-Typ: **Schieberegler** (input_number).
+
+          default: ""
+          selector:
+            entity:
+              domain: input_number
+        room3_comfort_fixed:
+          name: "🌡️ Komfort Fix (°C)"
+          description: |
+
+            Fallback-Komforttemperatur in Raum 3 ohne Helper.
+
+          default: 20.0
+          selector:
+            number:
+              min: 18
+              max: 24
+              step: 0.5
+              unit_of_measurement: "°C"
+        room3_schedule:
+          name: "🗓️ Zeitplan"
+          description: |
+
+            Optionaler Zeitplan für Komfortbetrieb in Raum 3.
+
+          default: ""
+          selector:
+            entity:
+              domain: schedule
+        room3_presence_sensors:
+          name: "👀 Präsenz"
+          description: |
+
+            Optionale Präsenzsensoren für Komfortfreigabe in Raum 3.
+
+          default: []
+          selector:
+            entity:
+              domain: binary_sensor
+              device_class: occupancy
+              multiple: true
+        room3_presence_delay:
+          name: "⏱️ Nachlauf (min)"
+          description: |
+
+            Nachlaufzeit bis Rückfall auf Eco in Raum 3.
+
+          default: 30
+          selector:
+            number:
+              min: 15
+              max: 120
+              step: 5
+              unit_of_measurement: "min"
+        room3_window:
+          name: "🪟 Fenster"
+          description: |
+
+            Fensterkontakt in Raum 3 für Sicherheitsabsenkung.
+
+          default: ""
+          selector:
+            entity:
+              domain: binary_sensor
+              device_class: window
+        room3_smart_window:
+          name: "🧠 Smart-Fenster (opt)"
+          description: |
+
+            Optionaler virtueller Fenstersensor in Raum 3. Wird mit Hardwarekontakt logisch ODER verknüpft.
+
+          default: ""
+          selector:
+            entity:
+              domain: binary_sensor
+        room3_temp_sensor:
+          name: "🌡️ Temperatursensor"
+          description: |
+
+            Optionaler externer Temperatursensor für Raum 3.
+
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+
+    section_room4:
+      name: "🛁 Raum 4"
+      description: |
+
+        Isolierter Raum mit eigener Komfortlogik über Zeitplan und Präsenz.
+        Aktive Raumanforderung kann den Master-Sollwert anheben.
+
+      collapsed: true
+      input:
+        room4_enabled:
+          name: "🔘 Aktiv"
+          description: |
+
+            Aktiviert die Regelung für Raum 4.
+
+          default: false
+          selector:
+            boolean:
+        room4_climate:
+          name: "♨️ TRV"
+          description: |
+
+            TRV/Thermostat für Raum 4.
+
+          default: ""
+          selector:
+            entity:
+              domain: climate
+        room4_comfort_input:
+          name: "🌡️ Komfort Helper (opt)"
+          description: |
+
+            Optionaler Helper für die Komfort-Solltemperatur in Raum 4.
+            Erforderlicher Helfer-Typ: **Schieberegler** (input_number).
+
+          default: ""
+          selector:
+            entity:
+              domain: input_number
+        room4_comfort_fixed:
+          name: "🌡️ Komfort Fix (°C)"
+          description: |
+
+            Fallback-Komforttemperatur in Raum 4 ohne Helper.
+
+          default: 22.0
+          selector:
+            number:
+              min: 18
+              max: 24
+              step: 0.5
+              unit_of_measurement: "°C"
+        room4_schedule:
+          name: "🗓️ Zeitplan"
+          description: |
+
+            Optionaler Zeitplan für Komfortbetrieb in Raum 4.
+
+          default: ""
+          selector:
+            entity:
+              domain: schedule
+        room4_presence_sensors:
+          name: "👀 Präsenz"
+          description: |
+
+            Optionale Präsenzsensoren für Komfortfreigabe in Raum 4.
+
+          default: []
+          selector:
+            entity:
+              domain: binary_sensor
+              device_class: occupancy
+              multiple: true
+        room4_presence_delay:
+          name: "⏱️ Nachlauf (min)"
+          description: |
+
+            Nachlaufzeit bis Rückfall auf Eco in Raum 4.
+
+          default: 20
+          selector:
+            number:
+              min: 15
+              max: 120
+              step: 5
+              unit_of_measurement: "min"
+        room4_window:
+          name: "🪟 Fenster"
+          description: |
+
+            Fensterkontakt in Raum 4 für Sicherheitsabsenkung.
+
+          default: ""
+          selector:
+            entity:
+              domain: binary_sensor
+              device_class: window
+        room4_smart_window:
+          name: "🧠 Smart-Fenster (opt)"
+          description: |
+
+            Optionaler virtueller Fenstersensor in Raum 4. Wird mit Hardwarekontakt logisch ODER verknüpft.
+
+          default: ""
+          selector:
+            entity:
+              domain: binary_sensor
+        room4_temp_sensor:
+          name: "🌡️ Temperatursensor"
+          description: |
+
+            Optionaler externer Temperatursensor für Raum 4.
+
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+
+    section_room5:
+      name: "🍳 Raum 5"
+      description: |
+
+        Isolierter Raum mit eigener Komfortlogik über Zeitplan und Präsenz.
+        Aktive Raumanforderung kann den Master-Sollwert anheben.
+
+      collapsed: true
+      input:
+        room5_enabled:
+          name: "🔘 Aktiv"
+          description: |
+
+            Aktiviert die Regelung für Raum 5.
+
+          default: false
+          selector:
+            boolean:
+        room5_climate:
+          name: "♨️ TRV"
+          description: |
+
+            TRV/Thermostat für Raum 5.
+
+          default: ""
+          selector:
+            entity:
+              domain: climate
+        room5_comfort_input:
+          name: "🌡️ Komfort Helper (opt)"
+          description: |
+
+            Optionaler Helper für die Komfort-Solltemperatur in Raum 5.
+            Erforderlicher Helfer-Typ: **Schieberegler** (input_number).
+
+          default: ""
+          selector:
+            entity:
+              domain: input_number
+        room5_comfort_fixed:
+          name: "🌡️ Komfort Fix (°C)"
+          description: |
+
+            Fallback-Komforttemperatur in Raum 5 ohne Helper.
+
+          default: 21.0
+          selector:
+            number:
+              min: 18
+              max: 24
+              step: 0.5
+              unit_of_measurement: "°C"
+        room5_schedule:
+          name: "🗓️ Zeitplan"
+          description: |
+
+            Optionaler Zeitplan für Komfortbetrieb in Raum 5.
+
+          default: ""
+          selector:
+            entity:
+              domain: schedule
+        room5_presence_sensors:
+          name: "👀 Präsenz"
+          description: |
+
+            Optionale Präsenzsensoren für Komfortfreigabe in Raum 5.
+
+          default: []
+          selector:
+            entity:
+              domain: binary_sensor
+              device_class: occupancy
+              multiple: true
+        room5_presence_delay:
+          name: "⏱️ Nachlauf (min)"
+          description: |
+
+            Nachlaufzeit bis Rückfall auf Eco in Raum 5.
+
+          default: 45
+          selector:
+            number:
+              min: 15
+              max: 120
+              step: 5
+              unit_of_measurement: "min"
+        room5_window:
+          name: "🪟 Fenster"
+          description: |
+
+            Fensterkontakt in Raum 5 für Sicherheitsabsenkung.
+
+          default: ""
+          selector:
+            entity:
+              domain: binary_sensor
+              device_class: window
+        room5_smart_window:
+          name: "🧠 Smart-Fenster (opt)"
+          description: |
+
+            Optionaler virtueller Fenstersensor in Raum 5. Wird mit Hardwarekontakt logisch ODER verknüpft.
+
+          default: ""
+          selector:
+            entity:
+              domain: binary_sensor
+        room5_temp_sensor:
+          name: "🌡️ Temperatursensor"
+          description: |
+
+            Optionaler externer Temperatursensor für Raum 5.
+
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+
+
+    section_smart_functions:
+      name: "🧠 Regelungsparameter & Smarte Funktionen"
+      description: |
+
+        Feinparameter für Sicherheitsabsenkung, Hysterese und adaptive Sollwertlogik.
+        Diese Einstellungen steuern Reaktionsgeschwindigkeit und Stabilität der Regelung.
+
       collapsed: true
       input:
         min_trv_temp:
           name: "♨️ TRV Minimum (°C)"
           description: |
-            Mindest-Solltemperatur bei Fenster offen bzw. Frostschutz-Betrieb.
+
+            Mindest-Solltemperatur für Frostschutz und Sicherheitsabsenkung.
+
           default: 12
           selector:
             number:
@@ -810,7 +959,9 @@ blueprint:
         window_heat_delay:
           name: "⏱️ Fenster-Delay (min)"
           description: |
-            Wartezeit, bevor geöffnete Fenster als dauerhaft offen gelten.
+
+            Fallback-Zeitlimit bei offenem Fenster bis zur Sicherheitsabsenkung.
+
           default: 15
           selector:
             number:
@@ -821,7 +972,9 @@ blueprint:
         smart_drop_threshold:
           name: "📉 Smart-Drop Schwelle (°C)"
           description: |
-            Fenster offen: Abschaltung erst, wenn Ist-Temp um X Grad unter Soll fällt. (0 = Sofort).
+
+            Temperatursturz-Erkennung. Schaltet Heizung ab, wenn Ist-Wert um X °C unter Soll-Wert fällt.
+
           default: 2.0
           selector:
             number:
@@ -832,7 +985,9 @@ blueprint:
         hysteresis:
           name: "⚙️ Hysterese (°C)"
           description: |
-            Mindestabweichung zwischen Ist- und Solltemperatur, bevor neu geschrieben wird.
+
+            Mindestabweichung zwischen aktuellem und neuem Sollwert vor Schreibvorgang.
+
           default: 0.6
           selector:
             number:
@@ -843,17 +998,22 @@ blueprint:
         enable_weather_compensation:
           name: "🌦️ Wetter-Kompensation aktiv"
           description: |
-            Aktiviert die Wetter-Kompensation: Addiert bei Kälte bis zu +2°C zur Zieltemperatur (z.B. +0.6°C bei 7°C außen).
+
+            Aktiviert lineare Sollwertanhebung bei niedriger Außentemperatur.
+
           default: false
           selector:
             boolean:
         enable_humidity_compensation:
           name: "🔘 Feuchte-Kompensation"
           description: |
-            Schalter: >60% senkt Soll um 0.5°C.
+
+            Aktiviert Sollwertabsenkung bei hoher Luftfeuchte im Master-Raum.
+
           default: false
           selector:
             boolean:
+
 
 mode: restart
 
@@ -935,12 +1095,6 @@ trigger:
     event_data:
       entity_id: !input room5_window
     id: room5_window_change
-
-  - platform: event
-    event_type: state_changed
-    event_data:
-      entity_id: !input master_window
-    id: master_window_change
 
   # Smart-Window Trigger (Master, optional-safe)
   - platform: template
@@ -1095,7 +1249,6 @@ action:
         presence_deactivation_delay: !input presence_deactivation_delay
         enable_master_presence_priority: !input enable_master_presence_priority
         master_presence_priority_helper: !input master_presence_priority_helper
-        master_window: !input master_window
         master_smart_window: !input master_smart_window
         master_temp_sensor: !input master_temp_sensor
         master_humidity_sensor: !input master_humidity_sensor
@@ -1284,14 +1437,12 @@ action:
           {{ expand(inputs.room5_presence_sensors) | selectattr('state', 'eq', 'on') | list | length > 0 }}
         {% endif %}
       master_window_sensor_configured: >
-        {{ (inputs.master_window != '') or (inputs.master_smart_window != '') }}
+        {{ inputs.master_smart_window != '' }}
       master_window_open: >
-        {{ (is_state(inputs.master_window, 'on') if inputs.master_window != '' else false) or (is_state(inputs.master_smart_window, 'on') if inputs.master_smart_window != '' else false) }}
+        {{ is_state(inputs.master_smart_window, 'on') if inputs.master_smart_window != '' else false }}
       master_window_open_too_long: >
         {% if master_window_sensor_configured and (master_window_open | bool(false)) %}
-          {% if inputs.master_window != '' and is_state(inputs.master_window, 'on') %}
-            {% set win_state = expand([inputs.master_window]) | first %}
-          {% elif inputs.master_smart_window != '' and is_state(inputs.master_smart_window, 'on') %}
+          {% if inputs.master_smart_window != '' and is_state(inputs.master_smart_window, 'on') %}
             {% set win_state = expand([inputs.master_smart_window]) | first %}
           {% else %}
             {% set win_state = none %}
@@ -1328,21 +1479,12 @@ action:
       master_window_recently_closed: >
         {% if not (master_window_sensor_configured | bool(false)) %}
           false
-        {% elif trigger is defined and trigger is not none and trigger.id is defined and trigger.id in ['master_window_change', 'master_smart_window_change'] %}
+        {% elif trigger is defined and trigger is not none and trigger.id is defined and trigger.id == 'master_smart_window_change' %}
           {% if trigger.to_state is defined and trigger.to_state is not none and trigger.from_state is defined and trigger.from_state is not none %}
             {{ (trigger.from_state.state == 'on') and (trigger.to_state.state == 'off') }}
           {% else %}
             {% set now_ts = as_timestamp(now(), 0) %}
             {% set ns = namespace(last_change_ts=0) %}
-            {% if inputs.master_window != '' and is_state(inputs.master_window, 'off') %}
-              {% set hw = expand([inputs.master_window]) | first %}
-              {% if hw is not none and hw.last_changed is defined and hw.last_changed is not none %}
-                {% set hw_ts = as_timestamp(hw.last_changed, 0) | float(0) %}
-                {% if hw_ts > 946684800 and hw_ts <= now_ts %}
-                  {% set ns.last_change_ts = [ns.last_change_ts, hw_ts] | max %}
-                {% endif %}
-              {% endif %}
-            {% endif %}
             {% if inputs.master_smart_window != '' and is_state(inputs.master_smart_window, 'off') %}
               {% set sw = expand([inputs.master_smart_window]) | first %}
               {% if sw is not none and sw.last_changed is defined and sw.last_changed is not none %}
