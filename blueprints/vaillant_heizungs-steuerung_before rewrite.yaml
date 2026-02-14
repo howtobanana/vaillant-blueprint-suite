@@ -269,55 +269,6 @@ blueprint:
               max: 120
               step: 5
               unit_of_measurement: "min"
-        master_presence_helper:
-          name: "Master Presence Helper Entity"
-          description: |
-
-            Input boolean to store master presence state. Create manually: Settings -> Helpers -> Toggle -> Name: 'Heating: Master Presence Active'
-
-          selector:
-            entity:
-              domain: input_boolean
-        room2_presence_helper:
-          name: "Room2 Presence Helper Entity (optional)"
-          description: |
-
-            Input boolean for room2 presence state. Leave empty if room2 disabled.
-
-          default: ""
-          selector:
-            entity:
-              domain: input_boolean
-        room3_presence_helper:
-          name: "Room3 Presence Helper Entity (optional)"
-          description: |
-
-            Input boolean for room3 presence state. Leave empty if room3 disabled.
-
-          default: ""
-          selector:
-            entity:
-              domain: input_boolean
-        room4_presence_helper:
-          name: "Room4 Presence Helper Entity (optional)"
-          description: |
-
-            Input boolean for room4 presence state. Leave empty if room4 disabled.
-
-          default: ""
-          selector:
-            entity:
-              domain: input_boolean
-        room5_presence_helper:
-          name: "Room5 Presence Helper Entity (optional)"
-          description: |
-
-            Input boolean for room5 presence state. Leave empty if room5 disabled.
-
-          default: ""
-          selector:
-            entity:
-              domain: input_boolean
         enable_master_presence_priority:
           name: "👑 Master gewinnt bei Präsenz"
           description: |
@@ -1084,234 +1035,209 @@ blueprint:
 mode: restart
 
 trigger:
-  # ============================================
-  # PRESENCE TRIGGERS
-  # ============================================
-  - platform: state
-    entity_id: !input master_presence_sensors
-    to: "on"
-    for:
-      minutes: !input presence_activation_delay
-    id: master_presence_on
-  - platform: state
-    entity_id: !input master_presence_sensors
-    to: "off"
-    for:
-      minutes: !input presence_deactivation_delay
-    id: master_presence_off
-  - platform: state
-    entity_id: !input room2_presence_sensors
-    to: "on"
-    for:
-      minutes: !input room2_presence_delay
-    id: room2_presence_on
-  - platform: state
-    entity_id: !input room2_presence_sensors
-    to: "off"
-    for:
-      minutes: !input room2_presence_delay
-    id: room2_presence_off
-  - platform: state
-    entity_id: !input room3_presence_sensors
-    to: "on"
-    for:
-      minutes: !input room3_presence_delay
-    id: room3_presence_on
-  - platform: state
-    entity_id: !input room3_presence_sensors
-    to: "off"
-    for:
-      minutes: !input room3_presence_delay
-    id: room3_presence_off
-  - platform: state
-    entity_id: !input room4_presence_sensors
-    to: "on"
-    for:
-      minutes: !input room4_presence_delay
-    id: room4_presence_on
-  - platform: state
-    entity_id: !input room4_presence_sensors
-    to: "off"
-    for:
-      minutes: !input room4_presence_delay
-    id: room4_presence_off
-  - platform: state
-    entity_id: !input room5_presence_sensors
-    to: "on"
-    for:
-      minutes: !input room5_presence_delay
-    id: room5_presence_on
-  - platform: state
-    entity_id: !input room5_presence_sensors
-    to: "off"
-    for:
-      minutes: !input room5_presence_delay
-    id: room5_presence_off
-
-  # ============================================
-  # SCHEDULED TRIGGER (for temp logic)
-  # ============================================
   - platform: time_pattern
-    minutes: "/1"
-    id: scheduled
+    minutes: "/15"
+    id: main_loop
+
+  - platform: state
+    entity_id: !input master_presence_sensors
+    id: master_presence_change
+
+  - platform: state
+    entity_id: !input room2_presence_sensors
+    id: room2_presence_change
+
+  - platform: state
+    entity_id: !input room3_presence_sensors
+    id: room3_presence_change
+
+  - platform: state
+    entity_id: !input room4_presence_sensors
+    id: room4_presence_change
+
+  - platform: state
+    entity_id: !input room5_presence_sensors
+    id: room5_presence_change
+
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input master_schedule
+    id: master_schedule_change
+
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input room2_schedule
+    id: room2_schedule_change
+
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input room3_schedule
+    id: room3_schedule_change
+
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input room4_schedule
+    id: room4_schedule_change
+
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input room5_schedule
+    id: room5_schedule_change
+
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input room2_window
+    id: room2_window_change
+
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input room3_window
+    id: room3_window_change
+
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input room4_window
+    id: room4_window_change
+
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input room5_window
+    id: room5_window_change
+
+  # Smart-Window Trigger (Master, optional-safe)
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'on') }}"
+    variables:
+      entity: !input master_smart_window
+    id: master_smart_window_change
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'off') }}"
+    variables:
+      entity: !input master_smart_window
+    id: master_smart_window_change
+
+  # Smart-Window Trigger (Rooms, optional-safe)
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'on') }}"
+    variables:
+      entity: !input room2_smart_window
+    id: room2_smart_window_change
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'off') }}"
+    variables:
+      entity: !input room2_smart_window
+    id: room2_smart_window_change
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'on') }}"
+    variables:
+      entity: !input room3_smart_window
+    id: room3_smart_window_change
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'off') }}"
+    variables:
+      entity: !input room3_smart_window
+    id: room3_smart_window_change
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'on') }}"
+    variables:
+      entity: !input room4_smart_window
+    id: room4_smart_window_change
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'off') }}"
+    variables:
+      entity: !input room4_smart_window
+    id: room4_smart_window_change
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'on') }}"
+    variables:
+      entity: !input room5_smart_window
+    id: room5_smart_window_change
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'off') }}"
+    variables:
+      entity: !input room5_smart_window
+    id: room5_smart_window_change
+
+  # Follower-Window Trigger (optional-safe)
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'on') }}"
+    variables:
+      entity: !input follower1_window
+    id: follower1_window_change
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'off') }}"
+    variables:
+      entity: !input follower1_window
+    id: follower1_window_change
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'on') }}"
+    variables:
+      entity: !input follower2_window
+    id: follower2_window_change
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'off') }}"
+    variables:
+      entity: !input follower2_window
+    id: follower2_window_change
+
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input eco_temp_input
+    id: eco_temp_input_change
+
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input away_temp_input
+    id: away_temp_input_change
+
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input master_comfort_input
+    id: master_comfort_input_change
+
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input room2_comfort_input
+    id: room2_comfort_input_change
+
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input room3_comfort_input
+    id: room3_comfort_input_change
+
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input room4_comfort_input
+    id: room4_comfort_input_change
+
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: !input room5_comfort_input
+    id: room5_comfort_input_change
+
+  - platform: state
+    entity_id: !input away_mode_boolean
+    id: awaymodechange
 
 condition: []
 
 action:
-  # ============================================
-  # PRESENCE STATE MANAGEMENT
-  # ============================================
-  - variables:
-      master_presence_helper: !input master_presence_helper
-      room2_presence_helper: !input room2_presence_helper
-      room3_presence_helper: !input room3_presence_helper
-      room4_presence_helper: !input room4_presence_helper
-      room5_presence_helper: !input room5_presence_helper
-      presence_activation_delay: !input presence_activation_delay
-      presence_deactivation_delay: !input presence_deactivation_delay
-  - choose:
-      - conditions:
-          - condition: trigger
-            id: master_presence_on
-        sequence:
-          - condition: template
-            value_template: "{{ master_presence_helper != '' }}"
-          - service: input_boolean.turn_on
-            target:
-              entity_id: !input master_presence_helper
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Master Presence ACTIVATED (sensor ON >{{ presence_activation_delay }}min)"
-              level: info
-          - stop: ""
-      - conditions:
-          - condition: trigger
-            id: master_presence_off
-        sequence:
-          - condition: template
-            value_template: "{{ master_presence_helper != '' }}"
-          - service: input_boolean.turn_off
-            target:
-              entity_id: !input master_presence_helper
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Master Presence DEACTIVATED (sensor OFF >{{ presence_deactivation_delay }}min)"
-              level: info
-          - stop: ""
-      - conditions:
-          - condition: trigger
-            id: room2_presence_on
-        sequence:
-          - condition: template
-            value_template: "{{ room2_presence_helper != '' }}"
-          - service: input_boolean.turn_on
-            target:
-              entity_id: !input room2_presence_helper
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room2 Presence ACTIVATED"
-              level: info
-          - stop: ""
-      - conditions:
-          - condition: trigger
-            id: room2_presence_off
-        sequence:
-          - condition: template
-            value_template: "{{ room2_presence_helper != '' }}"
-          - service: input_boolean.turn_off
-            target:
-              entity_id: !input room2_presence_helper
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room2 Presence DEACTIVATED"
-              level: info
-          - stop: ""
-      - conditions:
-          - condition: trigger
-            id: room3_presence_on
-        sequence:
-          - condition: template
-            value_template: "{{ room3_presence_helper != '' }}"
-          - service: input_boolean.turn_on
-            target:
-              entity_id: !input room3_presence_helper
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room3 Presence ACTIVATED"
-              level: info
-          - stop: ""
-      - conditions:
-          - condition: trigger
-            id: room3_presence_off
-        sequence:
-          - condition: template
-            value_template: "{{ room3_presence_helper != '' }}"
-          - service: input_boolean.turn_off
-            target:
-              entity_id: !input room3_presence_helper
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room3 Presence DEACTIVATED"
-              level: info
-          - stop: ""
-      - conditions:
-          - condition: trigger
-            id: room4_presence_on
-        sequence:
-          - condition: template
-            value_template: "{{ room4_presence_helper != '' }}"
-          - service: input_boolean.turn_on
-            target:
-              entity_id: !input room4_presence_helper
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room4 Presence ACTIVATED"
-              level: info
-          - stop: ""
-      - conditions:
-          - condition: trigger
-            id: room4_presence_off
-        sequence:
-          - condition: template
-            value_template: "{{ room4_presence_helper != '' }}"
-          - service: input_boolean.turn_off
-            target:
-              entity_id: !input room4_presence_helper
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room4 Presence DEACTIVATED"
-              level: info
-          - stop: ""
-      - conditions:
-          - condition: trigger
-            id: room5_presence_on
-        sequence:
-          - condition: template
-            value_template: "{{ room5_presence_helper != '' }}"
-          - service: input_boolean.turn_on
-            target:
-              entity_id: !input room5_presence_helper
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room5 Presence ACTIVATED"
-              level: info
-          - stop: ""
-      - conditions:
-          - condition: trigger
-            id: room5_presence_off
-        sequence:
-          - condition: template
-            value_template: "{{ room5_presence_helper != '' }}"
-          - service: input_boolean.turn_off
-            target:
-              entity_id: !input room5_presence_helper
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room5 Presence DEACTIVATED"
-              level: info
-          - stop: ""
-
-  # Continue to scheduled logic if no presence trigger matched
   - variables:
       # ===== GROUP 1: INPUTS & HELPERS =====
       inputs:
@@ -1337,7 +1263,6 @@ action:
         master_comfort_fixed: !input master_comfort_fixed
         master_schedule: !input master_schedule
         master_presence_sensors: !input master_presence_sensors
-        master_presence_helper: !input master_presence_helper
         presence_activation_delay: !input presence_activation_delay
         presence_deactivation_delay: !input presence_deactivation_delay
         enable_master_presence_priority: !input enable_master_presence_priority
@@ -1351,7 +1276,6 @@ action:
         room2_comfort_fixed: !input room2_comfort_fixed
         room2_schedule: !input room2_schedule
         room2_presence_sensors: !input room2_presence_sensors
-        room2_presence_helper: !input room2_presence_helper
         room2_presence_delay: !input room2_presence_delay
         room2_window: !input room2_window
         room2_smart_window: !input room2_smart_window
@@ -1362,7 +1286,6 @@ action:
         room3_comfort_fixed: !input room3_comfort_fixed
         room3_schedule: !input room3_schedule
         room3_presence_sensors: !input room3_presence_sensors
-        room3_presence_helper: !input room3_presence_helper
         room3_presence_delay: !input room3_presence_delay
         room3_window: !input room3_window
         room3_smart_window: !input room3_smart_window
@@ -1373,7 +1296,6 @@ action:
         room4_comfort_fixed: !input room4_comfort_fixed
         room4_schedule: !input room4_schedule
         room4_presence_sensors: !input room4_presence_sensors
-        room4_presence_helper: !input room4_presence_helper
         room4_presence_delay: !input room4_presence_delay
         room4_window: !input room4_window
         room4_smart_window: !input room4_smart_window
@@ -1384,7 +1306,6 @@ action:
         room5_comfort_fixed: !input room5_comfort_fixed
         room5_schedule: !input room5_schedule
         room5_presence_sensors: !input room5_presence_sensors
-        room5_presence_helper: !input room5_presence_helper
         room5_presence_delay: !input room5_presence_delay
         room5_window: !input room5_window
         room5_smart_window: !input room5_smart_window
@@ -1448,7 +1369,57 @@ action:
           {{ false }}
         {% endif %}
       master_presence_detected: >
-        {{ is_state(inputs.master_presence_helper, 'on') if inputs.master_presence_helper != '' else false }}
+        {% if inputs.master_presence_sensors | length == 0 %}
+          {{ false }}
+        {% else %}
+          {% set sensors = expand(inputs.master_presence_sensors) | selectattr('last_changed', 'defined') | list %}
+          {% if sensors | length == 0 %}
+            {{ false }}
+          {% else %}
+            {% set any_on = sensors | selectattr('state', 'eq', 'on') | list | length > 0 %}
+            {% set ns = namespace(active=false) %}
+
+            {# Aktivierung: Sofort wenn ON + >=2 Min #}
+            {% for s in sensors %}
+              {% if s.state == 'on' %}
+                {% set s_changed_dt = s.last_changed | as_datetime %}
+                {% if s_changed_dt is not none %}
+                  {% set now_ts = as_timestamp(now()) | float(0) %}
+                  {% set changed_ts = as_timestamp(s_changed_dt) | float(0) %}
+                  {% set on_duration = now_ts - changed_ts %}
+                  {% if on_duration >= (inputs.presence_activation_delay | float(0) * 60) %}
+                    {% set ns.active = true %}
+                  {% endif %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+
+            {# Wenn aktiv -> true #}
+            {% if ns.active %}
+              {{ true }}
+            {# Wenn nicht aktiv, alle OFF -> Nachlauf prüfen (PER SENSOR!) #}
+            {% elif not any_on %}
+              {% set recently_off = namespace(found=false) %}
+              {% for s in sensors %}
+                {% if s.state == 'off' %}
+                  {% set s_changed_dt = s.last_changed | as_datetime %}
+                  {% if s_changed_dt is not none %}
+                    {% set now_ts = as_timestamp(now()) | float(0) %}
+                    {% set changed_ts = as_timestamp(s_changed_dt) | float(0) %}
+                    {% set off_duration = now_ts - changed_ts %}
+                    {# Nur Nachlauf wenn <30 Min OFF #}
+                    {% if off_duration < (inputs.presence_deactivation_delay | float(0) * 60) %}
+                      {% set recently_off.found = true %}
+                    {% endif %}
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+              {{ recently_off.found }}
+            {% else %}
+              {{ false }}
+            {% endif %}
+          {% endif %}
+        {% endif %}
       room2_schedule_active_for_demand: >
         {% if inputs.room2_enabled and inputs.room2_schedule != "" %}
           {{ is_state(inputs.room2_schedule, 'on') }}
@@ -1456,7 +1427,53 @@ action:
           {{ false }}
         {% endif %}
       room2_presence_for_demand: >
-        {{ is_state(inputs.room2_presence_helper, 'on') if inputs.room2_presence_helper != '' else false }}
+        {% if not inputs.room2_enabled or (inputs.room2_presence_sensors | length == 0) %}
+          {{ false }}
+        {% else %}
+          {% set sensors = expand(inputs.room2_presence_sensors) | selectattr('last_changed', 'defined') | list %}
+          {% if sensors | length == 0 %}
+            {{ false }}
+          {% else %}
+            {% set any_on = sensors | selectattr('state', 'eq', 'on') | list | length > 0 %}
+            {% set ns = namespace(active=false) %}
+
+            {% for s in sensors %}
+              {% if s.state == 'on' %}
+                {% set s_changed_dt = s.last_changed | as_datetime %}
+                {% if s_changed_dt is not none %}
+                  {% set now_ts = as_timestamp(now()) | float(0) %}
+                  {% set changed_ts = as_timestamp(s_changed_dt) | float(0) %}
+                  {% set on_duration = now_ts - changed_ts %}
+                  {% if on_duration >= (inputs.room2_presence_delay | float(0) * 60) %}
+                    {% set ns.active = true %}
+                  {% endif %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+
+            {% if ns.active %}
+              {{ true }}
+            {% elif not any_on %}
+              {% set recently_off = namespace(found=false) %}
+              {% for s in sensors %}
+                {% if s.state == 'off' %}
+                  {% set s_changed_dt = s.last_changed | as_datetime %}
+                  {% if s_changed_dt is not none %}
+                    {% set now_ts = as_timestamp(now()) | float(0) %}
+                    {% set changed_ts = as_timestamp(s_changed_dt) | float(0) %}
+                    {% set off_duration = now_ts - changed_ts %}
+                    {% if off_duration < (inputs.room2_presence_delay | float(0) * 60) %}
+                      {% set recently_off.found = true %}
+                    {% endif %}
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+              {{ recently_off.found }}
+            {% else %}
+              {{ false }}
+            {% endif %}
+          {% endif %}
+        {% endif %}
       room3_schedule_active_for_demand: >
         {% if inputs.room3_enabled and inputs.room3_schedule != "" %}
           {{ is_state(inputs.room3_schedule, 'on') }}
@@ -1464,7 +1481,53 @@ action:
           {{ false }}
         {% endif %}
       room3_presence_for_demand: >
-        {{ is_state(inputs.room3_presence_helper, 'on') if inputs.room3_presence_helper != '' else false }}
+        {% if not inputs.room3_enabled or (inputs.room3_presence_sensors | length == 0) %}
+          {{ false }}
+        {% else %}
+          {% set sensors = expand(inputs.room3_presence_sensors) | selectattr('last_changed', 'defined') | list %}
+          {% if sensors | length == 0 %}
+            {{ false }}
+          {% else %}
+            {% set any_on = sensors | selectattr('state', 'eq', 'on') | list | length > 0 %}
+            {% set ns = namespace(active=false) %}
+
+            {% for s in sensors %}
+              {% if s.state == 'on' %}
+                {% set s_changed_dt = s.last_changed | as_datetime %}
+                {% if s_changed_dt is not none %}
+                  {% set now_ts = as_timestamp(now()) | float(0) %}
+                  {% set changed_ts = as_timestamp(s_changed_dt) | float(0) %}
+                  {% set on_duration = now_ts - changed_ts %}
+                  {% if on_duration >= (inputs.room3_presence_delay | float(0) * 60) %}
+                    {% set ns.active = true %}
+                  {% endif %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+
+            {% if ns.active %}
+              {{ true }}
+            {% elif not any_on %}
+              {% set recently_off = namespace(found=false) %}
+              {% for s in sensors %}
+                {% if s.state == 'off' %}
+                  {% set s_changed_dt = s.last_changed | as_datetime %}
+                  {% if s_changed_dt is not none %}
+                    {% set now_ts = as_timestamp(now()) | float(0) %}
+                    {% set changed_ts = as_timestamp(s_changed_dt) | float(0) %}
+                    {% set off_duration = now_ts - changed_ts %}
+                    {% if off_duration < (inputs.room3_presence_delay | float(0) * 60) %}
+                      {% set recently_off.found = true %}
+                    {% endif %}
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+              {{ recently_off.found }}
+            {% else %}
+              {{ false }}
+            {% endif %}
+          {% endif %}
+        {% endif %}
       room4_schedule_active_for_demand: >
         {% if inputs.room4_enabled and inputs.room4_schedule != "" %}
           {{ is_state(inputs.room4_schedule, 'on') }}
@@ -1472,7 +1535,53 @@ action:
           {{ false }}
         {% endif %}
       room4_presence_for_demand: >
-        {{ is_state(inputs.room4_presence_helper, 'on') if inputs.room4_presence_helper != '' else false }}
+        {% if not inputs.room4_enabled or (inputs.room4_presence_sensors | length == 0) %}
+          {{ false }}
+        {% else %}
+          {% set sensors = expand(inputs.room4_presence_sensors) | selectattr('last_changed', 'defined') | list %}
+          {% if sensors | length == 0 %}
+            {{ false }}
+          {% else %}
+            {% set any_on = sensors | selectattr('state', 'eq', 'on') | list | length > 0 %}
+            {% set ns = namespace(active=false) %}
+
+            {% for s in sensors %}
+              {% if s.state == 'on' %}
+                {% set s_changed_dt = s.last_changed | as_datetime %}
+                {% if s_changed_dt is not none %}
+                  {% set now_ts = as_timestamp(now()) | float(0) %}
+                  {% set changed_ts = as_timestamp(s_changed_dt) | float(0) %}
+                  {% set on_duration = now_ts - changed_ts %}
+                  {% if on_duration >= (inputs.room4_presence_delay | float(0) * 60) %}
+                    {% set ns.active = true %}
+                  {% endif %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+
+            {% if ns.active %}
+              {{ true }}
+            {% elif not any_on %}
+              {% set recently_off = namespace(found=false) %}
+              {% for s in sensors %}
+                {% if s.state == 'off' %}
+                  {% set s_changed_dt = s.last_changed | as_datetime %}
+                  {% if s_changed_dt is not none %}
+                    {% set now_ts = as_timestamp(now()) | float(0) %}
+                    {% set changed_ts = as_timestamp(s_changed_dt) | float(0) %}
+                    {% set off_duration = now_ts - changed_ts %}
+                    {% if off_duration < (inputs.room4_presence_delay | float(0) * 60) %}
+                      {% set recently_off.found = true %}
+                    {% endif %}
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+              {{ recently_off.found }}
+            {% else %}
+              {{ false }}
+            {% endif %}
+          {% endif %}
+        {% endif %}
       room5_schedule_active_for_demand: >
         {% if inputs.room5_enabled and inputs.room5_schedule != "" %}
           {{ is_state(inputs.room5_schedule, 'on') }}
@@ -1480,7 +1589,53 @@ action:
           {{ false }}
         {% endif %}
       room5_presence_for_demand: >
-        {{ is_state(inputs.room5_presence_helper, 'on') if inputs.room5_presence_helper != '' else false }}
+        {% if not inputs.room5_enabled or (inputs.room5_presence_sensors | length == 0) %}
+          {{ false }}
+        {% else %}
+          {% set sensors = expand(inputs.room5_presence_sensors) | selectattr('last_changed', 'defined') | list %}
+          {% if sensors | length == 0 %}
+            {{ false }}
+          {% else %}
+            {% set any_on = sensors | selectattr('state', 'eq', 'on') | list | length > 0 %}
+            {% set ns = namespace(active=false) %}
+
+            {% for s in sensors %}
+              {% if s.state == 'on' %}
+                {% set s_changed_dt = s.last_changed | as_datetime %}
+                {% if s_changed_dt is not none %}
+                  {% set now_ts = as_timestamp(now()) | float(0) %}
+                  {% set changed_ts = as_timestamp(s_changed_dt) | float(0) %}
+                  {% set on_duration = now_ts - changed_ts %}
+                  {% if on_duration >= (inputs.room5_presence_delay | float(0) * 60) %}
+                    {% set ns.active = true %}
+                  {% endif %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+
+            {% if ns.active %}
+              {{ true }}
+            {% elif not any_on %}
+              {% set recently_off = namespace(found=false) %}
+              {% for s in sensors %}
+                {% if s.state == 'off' %}
+                  {% set s_changed_dt = s.last_changed | as_datetime %}
+                  {% if s_changed_dt is not none %}
+                    {% set now_ts = as_timestamp(now()) | float(0) %}
+                    {% set changed_ts = as_timestamp(s_changed_dt) | float(0) %}
+                    {% set off_duration = now_ts - changed_ts %}
+                    {% if off_duration < (inputs.room5_presence_delay | float(0) * 60) %}
+                      {% set recently_off.found = true %}
+                    {% endif %}
+                  {% endif %}
+                {% endif %}
+              {% endfor %}
+              {{ recently_off.found }}
+            {% else %}
+              {{ false }}
+            {% endif %}
+          {% endif %}
+        {% endif %}
       master_window_sensor_configured: >
         {{ inputs.master_smart_window != '' }}
       master_window_open: >
