@@ -155,7 +155,7 @@ blueprint:
             Maximale Anzahl Master-Schreibvorgänge pro Stunde.
             Hohe Werte erlauben bei netzbetriebenen Geräten nahezu sofortige Aktualisierungen.
 
-          default: 12
+          default: 5
           selector:
             number:
               min: 2
@@ -275,46 +275,6 @@ blueprint:
 
             Input boolean to store master presence state. Create manually: Settings -> Helpers -> Toggle -> Name: 'Heating: Master Presence Active'
 
-          selector:
-            entity:
-              domain: input_boolean
-        room2_presence_helper:
-          name: "Room2 Presence Helper Entity (optional)"
-          description: |
-
-            Input boolean for room2 presence state. Leave empty if room2 disabled.
-
-          default: ""
-          selector:
-            entity:
-              domain: input_boolean
-        room3_presence_helper:
-          name: "Room3 Presence Helper Entity (optional)"
-          description: |
-
-            Input boolean for room3 presence state. Leave empty if room3 disabled.
-
-          default: ""
-          selector:
-            entity:
-              domain: input_boolean
-        room4_presence_helper:
-          name: "Room4 Presence Helper Entity (optional)"
-          description: |
-
-            Input boolean for room4 presence state. Leave empty if room4 disabled.
-
-          default: ""
-          selector:
-            entity:
-              domain: input_boolean
-        room5_presence_helper:
-          name: "Room5 Presence Helper Entity (optional)"
-          description: |
-
-            Input boolean for room5 presence state. Leave empty if room5 disabled.
-
-          default: ""
           selector:
             entity:
               domain: input_boolean
@@ -446,7 +406,7 @@ blueprint:
 
 
     section_follower_2:
-      name: "🔗 Verbundener Raum 2 (z.B. WC)"
+      name: "🔗 Verbundener Raum 2 (z.B. Durchgangszimmer)"
       description: |
 
         Verbundener Raum folgt dem Master-Sollwert mit Offset.
@@ -606,6 +566,16 @@ blueprint:
               max: 120
               step: 5
               unit_of_measurement: "min"
+        room2_presence_helper:
+          name: "Room2 Presence Helper Entity"
+          description: |
+
+            Input boolean for room2 presence state. Create manually: Settings -> Helpers -> Toggle -> Name: 'Heating: Room2 Presence Active'
+
+          default: ""
+          selector:
+            entity:
+              domain: input_boolean
         room2_window:
           name: "🪟 Fenster"
           description: |
@@ -726,6 +696,16 @@ blueprint:
               max: 120
               step: 5
               unit_of_measurement: "min"
+        room3_presence_helper:
+          name: "Room3 Presence Helper Entity"
+          description: |
+
+            Input boolean for room3 presence state. Create manually: Settings -> Helpers -> Toggle -> Name: 'Heating: Room3 Presence Active'
+
+          default: ""
+          selector:
+            entity:
+              domain: input_boolean
         room3_window:
           name: "🪟 Fenster"
           description: |
@@ -846,6 +826,16 @@ blueprint:
               max: 120
               step: 5
               unit_of_measurement: "min"
+        room4_presence_helper:
+          name: "Room4 Presence Helper Entity"
+          description: |
+
+            Input boolean for room4 presence state. Create manually: Settings -> Helpers -> Toggle -> Name: 'Heating: Room4 Presence Active'
+
+          default: ""
+          selector:
+            entity:
+              domain: input_boolean
         room4_window:
           name: "🪟 Fenster"
           description: |
@@ -966,6 +956,16 @@ blueprint:
               max: 120
               step: 5
               unit_of_measurement: "min"
+        room5_presence_helper:
+          name: "Room5 Presence Helper Entity"
+          description: |
+
+            Input boolean for room5 presence state. Create manually: Settings -> Helpers -> Toggle -> Name: 'Heating: Room5 Presence Active'
+
+          default: ""
+          selector:
+            entity:
+              domain: input_boolean
         room5_window:
           name: "🪟 Fenster"
           description: |
