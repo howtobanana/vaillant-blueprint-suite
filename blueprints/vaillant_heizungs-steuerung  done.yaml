@@ -152,14 +152,13 @@ blueprint:
           name: "🔧 Max Änderungen/h"
           description: |
 
-            Maximale Anzahl Master-Schreibvorgänge pro Stunde.
-            Hohe Werte erlauben bei netzbetriebenen Geräten nahezu sofortige Aktualisierungen.
+            Maximale Anzahl Master-Schreibvorgänge pro Stunde zur API-Entlastung.
 
-          default: 12
+          default: 3
           selector:
             number:
               min: 2
-              max: 60
+              max: 6
               step: 1
 
     section_master:
@@ -181,22 +180,6 @@ blueprint:
           selector:
             entity:
               domain: climate
-        master_last_write_helper:
-          name: "📝 Master Last Write Tracker"
-          description: |
-            **Pflicht-Helper für API-Cooldown-Tracking.**
-
-            **Typ:** `input_datetime` (mit Datum + Uhrzeit).
-
-            Dieser Helper speichert den Zeitstempel des letzten erfolgreichen API-Writes an den Master-Thermostat.
-
-            ⚠️ **NICHT manuell ändern!** Wird automatisch vom Blueprint verwaltet.
-
-            **Erstellen in Home Assistant:**
-            Einstellungen → Geräte & Dienste → Helfer → Helfer erstellen → Datum und/oder Uhrzeit → Name: "Vaillant Master Last Write" → Datum UND Uhrzeit aktivieren.
-          selector:
-            entity:
-              domain: input_datetime
         master_comfort_input:
           name: "🌡️ Master Komfort Helper (opt)"
           description: |
@@ -1258,7 +1241,6 @@ action:
         enable_weather_compensation: !input enable_weather_compensation
         enable_humidity_compensation: !input enable_humidity_compensation
         master_climate: !input master_climate
-        master_last_write_helper: !input master_last_write_helper
         master_comfort_input: !input master_comfort_input
         master_comfort_fixed: !input master_comfort_fixed
         master_schedule: !input master_schedule
@@ -1670,18 +1652,20 @@ action:
           {% set master_min = state_attr(inputs.master_climate, 'min_temp') | float(inputs.min_trv_temp | float(12)) if inputs.master_climate != '' else (inputs.min_trv_temp | float(12)) %}
           {% set summer_state_guess = inputs.master_climate != '' and (master_set <= (master_min + 0.2)) %}
           {% if current_outdoor > threshold_on %}
-            {{ true }}
+            true
           {% elif current_outdoor < threshold_off %}
-            {{ false }}
+            false
           {% else %}
             {{ summer_state_guess }}
           {% endif %}
         {% else %}
-          {{ false }}
+          false
         {% endif %}
       window_reheat_blocked: "{{ (master_window_recently_closed | bool(false)) and (outdoor_temp_valid | bool(false)) and ((outdoor_temp | float(0)) >= 5) }}"
       master_target_final: >
         {% if master_window_open_too_long or window_reheat_blocked %}
+          {{ inputs.min_trv_temp }}
+        {% elif summer_mode and not (master_schedule_active or master_presence_detected) %}
           {{ inputs.min_trv_temp }}
         {% else %}
           {{ master_target_with_humidity }}
@@ -2324,7 +2308,9 @@ action:
               away_mode_active_effective: >
                 {{ (away_mode_should_be_active | bool(false)) or (away_mode_entity_on | bool(false)) }}
               master_safety_floor: >
-                {% if away_mode_active_effective | bool(false) %}
+                {% if summer_mode | bool(false) %}
+                  {{ inputs.min_trv_temp | float(12) }}
+                {% elif away_mode_active_effective | bool(false) %}
                   {{ inputs.min_trv_temp | float(12) }}
                 {% else %}
                   {{ eco_temp | float(19) }}
@@ -2427,33 +2413,22 @@ action:
                 {{ ((master_set_now | float(0)) - (master_required_target | float(0))) > 2.0 }}
               effective_max_changes_per_hour: "{{ [inputs.max_changes_per_hour | float(3), 2] | max }}"
               master_change_min_interval_min_step55: "{{ 60 / (effective_max_changes_per_hour | float(3)) }}"
-              # API Write Tracking: Letzter erfolgreicher Write an Master-Thermostat
-              last_write_timestamp: >
-                {% set helper_state = states(inputs.master_last_write_helper) %}
-                {% if helper_state in ['unknown', 'unavailable', ''] %}
-                  {{ now() - timedelta(hours=24) }}
+              master_last_update_step55: >
+                {% set st = expand([inputs.master_climate]) | first %}
+                {% if st is not none and st.last_updated is defined %}
+                  {{ st.last_updated }}
                 {% else %}
-                  {% set parsed = helper_state | as_datetime %}
-                  {% if parsed is not none %}
-                    {{ parsed }}
-                  {% else %}
-                    {{ now() - timedelta(hours=24) }}
-                  {% endif %}
+                  {{ now() }}
                 {% endif %}
               master_last_update_age_step55: >
-                {% set dt = last_write_timestamp | as_datetime %}
+                {% set dt = master_last_update_step55 | as_datetime %}
                 {% if dt is not none %}
                   {{ (as_timestamp(now()) - as_timestamp(dt, as_timestamp(now()))) }}
                 {% else %}
                   0
                 {% endif %}
               master_change_cooldown_ok_step55: >
-                {% set dt = last_write_timestamp | as_datetime %}
-                {% if dt is not none %}
-                  {{ (now() - dt).total_seconds() >= (3600 / (effective_max_changes_per_hour | float(3))) }}
-                {% else %}
-                  true
-                {% endif %}
+                {{ master_last_update_age_step55 >= (master_change_min_interval_min_step55 * 60) }}
               master_needs_raise: >
                 {{ (master_required_target | float(0)) > ((master_set_now | float(0)) + (inputs.hysteresis | float(0.6))) }}
               master_excessively_high: >
@@ -2478,12 +2453,6 @@ action:
                     data:
                       temperature: "{{ master_required_target }}"
                     continue_on_error: true
-                  - service: input_datetime.set_datetime
-                    target:
-                      entity_id: "{{ inputs.master_last_write_helper }}"
-                    data:
-                      datetime: "{{ now() }}"
-                    continue_on_error: true
               # PATH B (CRITICAL): highest bidder boost or significant drop bypasses cooldown
               - conditions:
                   - "{{ not (master_forced_min_active | bool(false)) }}"
@@ -2496,12 +2465,6 @@ action:
                     data:
                       temperature: "{{ master_required_target }}"
                     continue_on_error: true
-                  - service: input_datetime.set_datetime
-                    target:
-                      entity_id: "{{ inputs.master_last_write_helper }}"
-                    data:
-                      datetime: "{{ now() }}"
-                    continue_on_error: true
               # PATH C (COMFORT): regular writes follow cooldown policy
               - conditions:
                   - "{{ master_write_allowed }}"
@@ -2511,10 +2474,4 @@ action:
                       entity_id: "{{ inputs.master_climate }}"
                     data:
                       temperature: "{{ master_required_target }}"
-                    continue_on_error: true
-                  - service: input_datetime.set_datetime
-                    target:
-                      entity_id: "{{ inputs.master_last_write_helper }}"
-                    data:
-                      datetime: "{{ now() }}"
                     continue_on_error: true
