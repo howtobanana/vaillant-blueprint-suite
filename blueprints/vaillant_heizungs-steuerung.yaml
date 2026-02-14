@@ -159,7 +159,7 @@ blueprint:
           selector:
             number:
               min: 2
-              max: 60
+              max: 10
               step: 1
 
     section_master:
@@ -1366,15 +1366,15 @@ action:
         {% if inputs.master_schedule != "" %}
           {{ is_state(inputs.master_schedule, 'on') }}
         {% else %}
-          false
+          {{ false }}
         {% endif %}
       master_presence_detected: >
         {% if inputs.master_presence_sensors | length == 0 %}
-          false
+          {{ false }}
         {% else %}
           {% set sensors = expand(inputs.master_presence_sensors) | selectattr('last_changed', 'defined') | list %}
           {% if sensors | length == 0 %}
-            false
+            {{ false }}
           {% else %}
           {% set any_on = sensors | selectattr('state', 'eq', 'on') | list | length > 0 %}
           {% set ns = namespace(active=false) %}
@@ -1387,7 +1387,7 @@ action:
             {% endif %}
           {% endfor %}
           {% if ns.active %}
-            true
+            {{ true }}
           {% elif not any_on %}
             {% set last_changes = sensors | map(attribute='last_changed') | list %}
             {% if last_changes | length > 0 %}
@@ -1396,13 +1396,13 @@ action:
               {% if last_change_dt is not none %}
                 {{ (as_timestamp(now()) - as_timestamp(last_change_dt, as_timestamp(now()))) < (inputs.presence_deactivation_delay | float(0) * 60) }}
               {% else %}
-                false
+                {{ false }}
               {% endif %}
             {% else %}
-              false
+              {{ false }}
             {% endif %}
           {% else %}
-            false
+            {{ false }}
           {% endif %}
           {% endif %}
         {% endif %}
@@ -1410,11 +1410,11 @@ action:
         {% if inputs.room2_enabled and inputs.room2_schedule != "" %}
           {{ is_state(inputs.room2_schedule, 'on') }}
         {% else %}
-          false
+          {{ false }}
         {% endif %}
       room2_presence_for_demand: >
         {% if not inputs.room2_enabled or (inputs.room2_presence_sensors | length == 0) %}
-          false
+          {{ false }}
         {% else %}
           {{ expand(inputs.room2_presence_sensors) | selectattr('state', 'eq', 'on') | list | length > 0 }}
         {% endif %}
@@ -1422,11 +1422,11 @@ action:
         {% if inputs.room3_enabled and inputs.room3_schedule != "" %}
           {{ is_state(inputs.room3_schedule, 'on') }}
         {% else %}
-          false
+          {{ false }}
         {% endif %}
       room3_presence_for_demand: >
         {% if not inputs.room3_enabled or (inputs.room3_presence_sensors | length == 0) %}
-          false
+          {{ false }}
         {% else %}
           {{ expand(inputs.room3_presence_sensors) | selectattr('state', 'eq', 'on') | list | length > 0 }}
         {% endif %}
@@ -1434,11 +1434,11 @@ action:
         {% if inputs.room4_enabled and inputs.room4_schedule != "" %}
           {{ is_state(inputs.room4_schedule, 'on') }}
         {% else %}
-          false
+          {{ false }}
         {% endif %}
       room4_presence_for_demand: >
         {% if not inputs.room4_enabled or (inputs.room4_presence_sensors | length == 0) %}
-          false
+          {{ false }}
         {% else %}
           {{ expand(inputs.room4_presence_sensors) | selectattr('state', 'eq', 'on') | list | length > 0 }}
         {% endif %}
@@ -1446,11 +1446,11 @@ action:
         {% if inputs.room5_enabled and inputs.room5_schedule != "" %}
           {{ is_state(inputs.room5_schedule, 'on') }}
         {% else %}
-          false
+          {{ false }}
         {% endif %}
       room5_presence_for_demand: >
         {% if not inputs.room5_enabled or (inputs.room5_presence_sensors | length == 0) %}
-          false
+          {{ false }}
         {% else %}
           {{ expand(inputs.room5_presence_sensors) | selectattr('state', 'eq', 'on') | list | length > 0 }}
         {% endif %}
@@ -1492,11 +1492,11 @@ action:
           {% set temp_dropped = (drop_threshold <= 0) or (current_temp < (target_temp - drop_threshold)) %}
           {{ temp_dropped or timer_expired }}
         {% else %}
-          false
+          {{ false }}
         {% endif %}
       master_window_recently_closed: >
         {% if not (master_window_sensor_configured | bool(false)) %}
-          false
+          {{ false }}
         {% elif trigger is defined and trigger is not none and trigger.id is defined and trigger.id == 'master_smart_window_change' %}
           {% if trigger.to_state is defined and trigger.to_state is not none and trigger.from_state is defined and trigger.from_state is not none %}
             {{ (trigger.from_state.state == 'on') and (trigger.to_state.state == 'off') }}
@@ -1515,11 +1515,11 @@ action:
             {% if ns.last_change_ts > 0 %}
               {{ (now_ts - ns.last_change_ts) < ((inputs.window_heat_delay | float(0)) * 60) }}
             {% else %}
-              false
+              {{ false }}
             {% endif %}
           {% endif %}
         {% else %}
-          false
+          {{ false }}
         {% endif %}
 
       # ===== GROUP 3: DEMAND CALCULATION =====
@@ -1616,13 +1616,13 @@ action:
           {% endfor %}
           {{ ns.active | bool(false) }}
         {% else %}
-          false
+          {{ false }}
         {% endif %}
       panic_mode_active: >
         {% if inputs.panic_mode_enabled != '' %}
           {{ is_state(inputs.panic_mode_enabled, 'on') }}
         {% else %}
-          false
+          {{ false }}
         {% endif %}
       away_mode_should_be_active: false
       master_target_temp: >
@@ -1707,7 +1707,7 @@ action:
                     {% if so is not none and so.last_changed is defined %}
                       {{ as_timestamp(so.last_changed, 0) > ((helper_input_trigger_ts | float(0)) + 0.5) }}
                     {% else %}
-                      false
+                      {{ false }}
                     {% endif %}
                 sequence:
                   - stop: "Neuere Helper-Änderung erkannt - veralteten Lauf beendet."
@@ -1721,15 +1721,15 @@ action:
                 {% if inputs.room2_schedule != "" %}
                   {{ is_state(inputs.room2_schedule, 'on') }}
                 {% else %}
-                  false
+                  {{ false }}
                 {% endif %}
               room2_presence: >
                 {% if inputs.room2_presence_sensors | length == 0 %}
-                  false
+                  {{ false }}
                 {% else %}
                   {% set sensors = expand(inputs.room2_presence_sensors) | selectattr('last_changed', 'defined') | list %}
                   {% if sensors | length == 0 %}
-                    false
+                    {{ false }}
                   {% else %}
                   {% set any_on = sensors | selectattr('state', 'eq', 'on') | list | length > 0 %}
                   {% set ns = namespace(active=false) %}
@@ -1742,7 +1742,7 @@ action:
                     {% endif %}
                   {% endfor %}
                   {% if ns.active %}
-                    true
+                    {{ true }}
                   {% elif not any_on %}
                     {% set last_changes = sensors | map(attribute='last_changed') | list %}
                     {% if last_changes | length > 0 %}
@@ -1751,13 +1751,13 @@ action:
                       {% if last_change_dt is not none %}
                         {{ (as_timestamp(now()) - as_timestamp(last_change_dt, as_timestamp(now()))) < (inputs.room2_presence_delay | float(0) * 60) }}
                       {% else %}
-                        false
+                        {{ false }}
                       {% endif %}
                     {% else %}
-                      false
+                      {{ false }}
                     {% endif %}
                   {% else %}
-                    false
+                    {{ false }}
                   {% endif %}
                   {% endif %}
                 {% endif %}
@@ -1839,15 +1839,15 @@ action:
                 {% if inputs.room3_schedule != "" %}
                   {{ is_state(inputs.room3_schedule, 'on') }}
                 {% else %}
-                  false
+                  {{ false }}
                 {% endif %}
               room3_presence: >
                 {% if inputs.room3_presence_sensors | length == 0 %}
-                  false
+                  {{ false }}
                 {% else %}
                   {% set sensors = expand(inputs.room3_presence_sensors) | selectattr('last_changed', 'defined') | list %}
                   {% if sensors | length == 0 %}
-                    false
+                    {{ false }}
                   {% else %}
                   {% set any_on = sensors | selectattr('state', 'eq', 'on') | list | length > 0 %}
                   {% set ns = namespace(active=false) %}
@@ -1860,7 +1860,7 @@ action:
                     {% endif %}
                   {% endfor %}
                   {% if ns.active %}
-                    true
+                    {{ true }}
                   {% elif not any_on %}
                     {% set last_changes = sensors | map(attribute='last_changed') | list %}
                     {% if last_changes | length > 0 %}
@@ -1869,13 +1869,13 @@ action:
                       {% if last_change_dt is not none %}
                         {{ (as_timestamp(now()) - as_timestamp(last_change_dt, as_timestamp(now()))) < (inputs.room3_presence_delay | float(0) * 60) }}
                       {% else %}
-                        false
+                        {{ false }}
                       {% endif %}
                     {% else %}
-                      false
+                      {{ false }}
                     {% endif %}
                   {% else %}
-                    false
+                    {{ false }}
                   {% endif %}
                   {% endif %}
                 {% endif %}
@@ -1957,15 +1957,15 @@ action:
                 {% if inputs.room4_schedule != "" %}
                   {{ is_state(inputs.room4_schedule, 'on') }}
                 {% else %}
-                  false
+                  {{ false }}
                 {% endif %}
               room4_presence: >
                 {% if inputs.room4_presence_sensors | length == 0 %}
-                  false
+                  {{ false }}
                 {% else %}
                   {% set sensors = expand(inputs.room4_presence_sensors) | selectattr('last_changed', 'defined') | list %}
                   {% if sensors | length == 0 %}
-                    false
+                    {{ false }}
                   {% else %}
                   {% set any_on = sensors | selectattr('state', 'eq', 'on') | list | length > 0 %}
                   {% set ns = namespace(active=false) %}
@@ -1978,7 +1978,7 @@ action:
                     {% endif %}
                   {% endfor %}
                   {% if ns.active %}
-                    true
+                    {{ true }}
                   {% elif not any_on %}
                     {% set last_changes = sensors | map(attribute='last_changed') | list %}
                     {% if last_changes | length > 0 %}
@@ -1987,13 +1987,13 @@ action:
                       {% if last_change_dt is not none %}
                         {{ (as_timestamp(now()) - as_timestamp(last_change_dt, as_timestamp(now()))) < (inputs.room4_presence_delay | float(0) * 60) }}
                       {% else %}
-                        false
+                        {{ false }}
                       {% endif %}
                     {% else %}
-                      false
+                      {{ false }}
                     {% endif %}
                   {% else %}
-                    false
+                    {{ false }}
                   {% endif %}
                   {% endif %}
                 {% endif %}
@@ -2075,15 +2075,15 @@ action:
                 {% if inputs.room5_schedule != "" %}
                   {{ is_state(inputs.room5_schedule, 'on') }}
                 {% else %}
-                  false
+                  {{ false }}
                 {% endif %}
               room5_presence: >
                 {% if inputs.room5_presence_sensors | length == 0 %}
-                  false
+                  {{ false }}
                 {% else %}
                   {% set sensors = expand(inputs.room5_presence_sensors) | selectattr('last_changed', 'defined') | list %}
                   {% if sensors | length == 0 %}
-                    false
+                    {{ false }}
                   {% else %}
                   {% set any_on = sensors | selectattr('state', 'eq', 'on') | list | length > 0 %}
                   {% set ns = namespace(active=false) %}
@@ -2096,7 +2096,7 @@ action:
                     {% endif %}
                   {% endfor %}
                   {% if ns.active %}
-                    true
+                    {{ true }}
                   {% elif not any_on %}
                     {% set last_changes = sensors | map(attribute='last_changed') | list %}
                     {% if last_changes | length > 0 %}
@@ -2105,13 +2105,13 @@ action:
                       {% if last_change_dt is not none %}
                         {{ (as_timestamp(now()) - as_timestamp(last_change_dt, as_timestamp(now()))) < (inputs.room5_presence_delay | float(0) * 60) }}
                       {% else %}
-                        false
+                        {{ false }}
                       {% endif %}
                     {% else %}
-                      false
+                      {{ false }}
                     {% endif %}
                   {% else %}
-                    false
+                    {{ false }}
                   {% endif %}
                   {% endif %}
                 {% endif %}
@@ -2317,7 +2317,7 @@ action:
                 {% if trigger is defined and trigger is not none and trigger.id is defined %}
                   {{ trigger.id in ['room2_window_change', 'room3_window_change', 'room4_window_change', 'room5_window_change'] }}
                 {% else %}
-                  false
+                  {{ false }}
                 {% endif %}
               master_forced_min_active: >
                 {{ (master_window_open_too_long | bool(false)) or (window_reheat_blocked | bool(false)) }}
@@ -2452,7 +2452,7 @@ action:
                 {% if dt is not none %}
                   {{ (now() - dt).total_seconds() >= (3600 / (effective_max_changes_per_hour | float(3))) }}
                 {% else %}
-                  true
+                  {{ true }}
                 {% endif %}
               master_needs_raise: >
                 {{ (master_required_target | float(0)) > ((master_set_now | float(0)) + (inputs.hysteresis | float(0.6))) }}
