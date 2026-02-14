@@ -155,11 +155,11 @@ blueprint:
             Maximale Anzahl Master-Schreibvorgänge pro Stunde.
             Hohe Werte erlauben bei netzbetriebenen Geräten nahezu sofortige Aktualisierungen.
 
-          default: 5
+          default: 10
           selector:
             number:
               min: 2
-              max: 10
+              max: 20
               step: 1
 
     section_master:
@@ -298,6 +298,44 @@ blueprint:
           selector:
             entity:
               domain: input_boolean
+        enable_room_boost:
+          name: "🚀 Room-Boost aktivieren"
+          description: |
+
+            Hebt den Master-Sollwert an, wenn ein Raum deutlich unter seinem Ziel liegt.
+            Boost endet automatisch bei <= 0.5 °C Restabweichung (Anti-Overshoot).
+
+          default: true
+          selector:
+            boolean:
+        room_boost_threshold:
+          name: "🌡️ Room-Boost Schwellwert (°C)"
+          description: |
+
+            Mindestabweichung eines Raums unter Soll, ab der Boost aktiviert wird.
+            Sobald ein Raum <= 0.5 °C unter Soll liegt, wird Boost wieder deaktiviert.
+
+          default: 0.5
+          selector:
+            number:
+              min: 0.2
+              max: 2.0
+              step: 0.1
+              unit_of_measurement: "°C"
+        room_boost_amount:
+          name: "⚡ Room-Boost Höhe (°C)"
+          description: |
+
+            Zusätzliche Erhöhung des Master-Sollwerts bei aktivem Boost.
+            0 = aus, 1 = konservativ, 2 = empfohlen, 3 = aggressiv.
+
+          default: 2.0
+          selector:
+            number:
+              min: 0
+              max: 3.0
+              step: 0.5
+              unit_of_measurement: "°C"
         master_smart_window:
           name: "🧠 Master Smart-Fenster (opt)"
           description: |
@@ -1342,6 +1380,9 @@ action:
         presence_deactivation_delay: !input presence_deactivation_delay
         enable_master_presence_priority: !input enable_master_presence_priority
         master_presence_priority_helper: !input master_presence_priority_helper
+        enable_room_boost: !input enable_room_boost
+        room_boost_threshold: !input room_boost_threshold
+        room_boost_amount: !input room_boost_amount
         master_smart_window: !input master_smart_window
         master_temp_sensor: !input master_temp_sensor
         master_humidity_sensor: !input master_humidity_sensor
@@ -2468,14 +2509,165 @@ action:
               master_required_target: >
                 {% set hi = [master_required_target_raw | float(0), master_max | float(30)] | min %}
                 {{ [hi, master_min | float(inputs.min_trv_temp | float(12))] | max }}
+              # Room boost detection with anti-overshoot hysteresis
+              room_boost_enabled_effective: >
+                {{ (inputs.enable_room_boost | bool(false)) and (inputs.room_boost_amount | float(0) > 0) and (not (master_forced_min_active | bool(false))) and (not (away_mode_active_effective | bool(false))) }}
+              room2_needs_boost: >
+                {% if room_boost_enabled_effective | bool(false) and (inputs.room2_enabled | bool(false)) and inputs.room2_temp_sensor != '' %}
+                  {% set room_raw = states(inputs.room2_temp_sensor) %}
+                  {% if room_raw not in ['unknown', 'unavailable', 'none', ''] %}
+                    {% set room_current = room_raw | float(0) %}
+                    {% set room_target = room2_demand | float(0) %}
+                    {% set threshold = inputs.room_boost_threshold | float(0.5) %}
+                    {% set delta = room_target - room_current %}
+                    {{ delta > threshold }}
+                  {% else %}
+                    {{ false }}
+                  {% endif %}
+                {% else %}
+                  {{ false }}
+                {% endif %}
+              room2_boost_deactivate: >
+                {% if room_boost_enabled_effective | bool(false) and (inputs.room2_enabled | bool(false)) and inputs.room2_temp_sensor != '' %}
+                  {% set room_raw = states(inputs.room2_temp_sensor) %}
+                  {% if room_raw not in ['unknown', 'unavailable', 'none', ''] %}
+                    {% set room_current = room_raw | float(0) %}
+                    {% set room_target = room2_demand | float(0) %}
+                    {% set delta = room_target - room_current %}
+                    {{ delta <= 0.5 }}
+                  {% else %}
+                    {{ true }}
+                  {% endif %}
+                {% else %}
+                  {{ true }}
+                {% endif %}
+              room3_needs_boost: >
+                {# USE ROBUST CHECK to match room3_demand logic #}
+                {% if room_boost_enabled_effective | bool(false) and ((inputs.room3_enabled | string | lower) in ['true', 'on', '1']) and inputs.room3_temp_sensor != '' %}
+                  {% set room_raw = states(inputs.room3_temp_sensor) %}
+                  {% if room_raw not in ['unknown', 'unavailable', 'none', ''] %}
+                    {% set room_current = room_raw | float(0) %}
+                    {% set room_target = room3_demand | float(0) %}
+                    {% set threshold = inputs.room_boost_threshold | float(0.5) %}
+                    {% set delta = room_target - room_current %}
+                    {{ delta > threshold }}
+                  {% else %}
+                    {{ false }}
+                  {% endif %}
+                {% else %}
+                  {{ false }}
+                {% endif %}
+              room3_boost_deactivate: >
+                {% if room_boost_enabled_effective | bool(false) and (inputs.room3_enabled | bool(false)) and inputs.room3_temp_sensor != '' %}
+                  {% set room_raw = states(inputs.room3_temp_sensor) %}
+                  {% if room_raw not in ['unknown', 'unavailable', 'none', ''] %}
+                    {% set room_current = room_raw | float(0) %}
+                    {% set room_target = room3_demand | float(0) %}
+                    {% set delta = room_target - room_current %}
+                    {{ delta <= 0.5 }}
+                  {% else %}
+                    {{ true }}
+                  {% endif %}
+                {% else %}
+                  {{ true }}
+                {% endif %}
+              room4_needs_boost: >
+                {% if room_boost_enabled_effective | bool(false) and (inputs.room4_enabled | bool(false)) and inputs.room4_temp_sensor != '' %}
+                  {% set room_raw = states(inputs.room4_temp_sensor) %}
+                  {% if room_raw not in ['unknown', 'unavailable', 'none', ''] %}
+                    {% set room_current = room_raw | float(0) %}
+                    {% set room_target = room4_demand | float(0) %}
+                    {% set threshold = inputs.room_boost_threshold | float(0.5) %}
+                    {% set delta = room_target - room_current %}
+                    {{ delta > threshold }}
+                  {% else %}
+                    {{ false }}
+                  {% endif %}
+                {% else %}
+                  {{ false }}
+                {% endif %}
+              room4_boost_deactivate: >
+                {% if room_boost_enabled_effective | bool(false) and (inputs.room4_enabled | bool(false)) and inputs.room4_temp_sensor != '' %}
+                  {% set room_raw = states(inputs.room4_temp_sensor) %}
+                  {% if room_raw not in ['unknown', 'unavailable', 'none', ''] %}
+                    {% set room_current = room_raw | float(0) %}
+                    {% set room_target = room4_demand | float(0) %}
+                    {% set delta = room_target - room_current %}
+                    {{ delta <= 0.5 }}
+                  {% else %}
+                    {{ true }}
+                  {% endif %}
+                {% else %}
+                  {{ true }}
+                {% endif %}
+              room5_needs_boost: >
+                {% if room_boost_enabled_effective | bool(false) and (inputs.room5_enabled | bool(false)) and inputs.room5_temp_sensor != '' %}
+                  {% set room_raw = states(inputs.room5_temp_sensor) %}
+                  {% if room_raw not in ['unknown', 'unavailable', 'none', ''] %}
+                    {% set room_current = room_raw | float(0) %}
+                    {% set room_target = room5_demand | float(0) %}
+                    {% set threshold = inputs.room_boost_threshold | float(0.5) %}
+                    {% set delta = room_target - room_current %}
+                    {{ delta > threshold }}
+                  {% else %}
+                    {{ false }}
+                  {% endif %}
+                {% else %}
+                  {{ false }}
+                {% endif %}
+              room5_boost_deactivate: >
+                {% if room_boost_enabled_effective | bool(false) and (inputs.room5_enabled | bool(false)) and inputs.room5_temp_sensor != '' %}
+                  {% set room_raw = states(inputs.room5_temp_sensor) %}
+                  {% if room_raw not in ['unknown', 'unavailable', 'none', ''] %}
+                    {% set room_current = room_raw | float(0) %}
+                    {% set room_target = room5_demand | float(0) %}
+                    {% set delta = room_target - room_current %}
+                    {{ delta <= 0.5 }}
+                  {% else %}
+                    {{ true }}
+                  {% endif %}
+                {% else %}
+                  {{ true }}
+                {% endif %}
+              any_room_needs_boost: >
+                {{
+                  (room2_needs_boost | bool(false)) or
+                  (room3_needs_boost | bool(false)) or
+                  (room4_needs_boost | bool(false)) or
+                  (room5_needs_boost | bool(false))
+                }}
+              all_rooms_boost_deactivate: >
+                {{
+                  (room2_boost_deactivate | bool(true)) and
+                  (room3_boost_deactivate | bool(true)) and
+                  (room4_boost_deactivate | bool(true)) and
+                  (room5_boost_deactivate | bool(true))
+                }}
+              master_boost_active: >
+                {{
+                  (room_boost_enabled_effective | bool(false)) and
+                  (any_room_needs_boost | bool(false)) and
+                  (not (all_rooms_boost_deactivate | bool(true)))
+                }}
+              master_boost_amount: >
+                {% if master_boost_active | bool(false) %}
+                  {{ inputs.room_boost_amount | float(2.0) }}
+                {% else %}
+                  {{ 0.0 }}
+                {% endif %}
+              master_required_target_with_boost: >
+                {% set base = master_required_target | float(0) %}
+                {% set boost = master_boost_amount | float(0) %}
+                {% set with_boost = base + boost %}
+                {{ [with_boost, master_max | float(30)] | min }}
               master_set_now: "{{ state_attr(inputs.master_climate, 'temperature') | float(0) }}"
-              master_target_delta_abs: "{{ ((master_required_target | float(0)) - (master_set_now | float(0))) | abs }}"
+              master_target_delta_abs: "{{ ((master_required_target_with_boost | float(0)) - (master_set_now | float(0))) | abs }}"
               master_needs_global_boost: >
                 {{ (not (away_mode_active_effective | bool(false))) and ((master_set_now | float(0)) < ((global_max_demand | float(0)) - 0.1)) }}
               master_needs_global_drop: >
                 {{ (not (away_mode_active_effective | bool(false))) and ((master_set_now | float(0)) > ((global_max_demand | float(0)) + 0.1)) }}
               master_significant_drop: >
-                {{ ((master_set_now | float(0)) - (master_required_target | float(0))) > 2.0 }}
+                {{ ((master_set_now | float(0)) - (master_required_target_with_boost | float(0))) > 2.0 }}
               effective_max_changes_per_hour: "{{ [inputs.max_changes_per_hour | float(3), 2] | max }}"
               master_change_min_interval_min_step55: "{{ 60 / (effective_max_changes_per_hour | float(3)) }}"
               # API Write Tracking: Letzter erfolgreicher Write an Master-Thermostat
@@ -2504,7 +2696,7 @@ action:
               master_change_cooldown_ok_step55: >
                 {{ (master_last_update_age_step55 | float(999999)) >= (3600 / (effective_max_changes_per_hour | float(3))) }}
               master_needs_raise: >
-                {{ (master_required_target | float(0)) > ((master_set_now | float(0)) + (inputs.hysteresis | float(0.6))) }}
+                {{ (master_required_target_with_boost | float(0)) > ((master_set_now | float(0)) + (inputs.hysteresis | float(0.6))) }}
               master_excessively_high: >
                 {{ master_needs_global_drop | bool(false) }}
               master_stuck_protection_active: >
@@ -2525,13 +2717,13 @@ action:
                     target:
                       entity_id: "{{ inputs.master_climate }}"
                     data:
-                      temperature: "{{ master_required_target }}"
+                      temperature: "{{ master_required_target_with_boost }}"
                     continue_on_error: true
                   - delay:
                       seconds: 2
                   - condition: template
                     value_template: >
-                      {{ ((state_attr(inputs.master_climate, 'temperature') | float(0)) - (master_required_target | float(0))) | abs <= 0.11 }}
+                      {{ ((state_attr(inputs.master_climate, 'temperature') | float(0)) - (master_required_target_with_boost | float(0))) | abs <= 0.11 }}
                   - service: input_datetime.set_datetime
                     target:
                       entity_id: "{{ inputs.master_last_write_helper }}"
@@ -2548,13 +2740,13 @@ action:
                     target:
                       entity_id: "{{ inputs.master_climate }}"
                     data:
-                      temperature: "{{ master_required_target }}"
+                      temperature: "{{ master_required_target_with_boost }}"
                     continue_on_error: true
                   - delay:
                       seconds: 2
                   - condition: template
                     value_template: >
-                      {{ ((state_attr(inputs.master_climate, 'temperature') | float(0)) - (master_required_target | float(0))) | abs <= 0.11 }}
+                      {{ ((state_attr(inputs.master_climate, 'temperature') | float(0)) - (master_required_target_with_boost | float(0))) | abs <= 0.11 }}
                   - service: input_datetime.set_datetime
                     target:
                       entity_id: "{{ inputs.master_last_write_helper }}"
@@ -2569,13 +2761,13 @@ action:
                     target:
                       entity_id: "{{ inputs.master_climate }}"
                     data:
-                      temperature: "{{ master_required_target }}"
+                      temperature: "{{ master_required_target_with_boost }}"
                     continue_on_error: true
                   - delay:
                       seconds: 2
                   - condition: template
                     value_template: >
-                      {{ ((state_attr(inputs.master_climate, 'temperature') | float(0)) - (master_required_target | float(0))) | abs <= 0.11 }}
+                      {{ ((state_attr(inputs.master_climate, 'temperature') | float(0)) - (master_required_target_with_boost | float(0))) | abs <= 0.11 }}
                   - service: input_datetime.set_datetime
                     target:
                       entity_id: "{{ inputs.master_last_write_helper }}"
