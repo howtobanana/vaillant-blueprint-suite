@@ -2441,19 +2441,17 @@ action:
                   {% endif %}
                 {% endif %}
               master_last_update_age_step55: >
-                {% set dt = last_write_timestamp | as_datetime %}
-                {% if dt is not none %}
-                  {{ (as_timestamp(now()) - as_timestamp(dt, as_timestamp(now()))) }}
+                {% set helper = inputs.master_last_write_helper %}
+                {% if helper != '' and states(helper) not in ['unavailable', 'unknown', ''] %}
+                  {% set last_write_str = states(helper) %}
+                  {% set last_write_ts = as_timestamp(strptime(last_write_str, '%Y-%m-%d %H:%M:%S')) | float(0) %}
+                  {% set now_ts = as_timestamp(now()) | float(0) %}
+                  {{ now_ts - last_write_ts }}
                 {% else %}
-                  0
+                  {{ 999999 }}
                 {% endif %}
               master_change_cooldown_ok_step55: >
-                {% set dt = last_write_timestamp | as_datetime %}
-                {% if dt is not none %}
-                  {{ (now() - dt).total_seconds() >= (3600 / (effective_max_changes_per_hour | float(3))) }}
-                {% else %}
-                  {{ true }}
-                {% endif %}
+                {{ (master_last_update_age_step55 | float(999999)) >= (3600 / (effective_max_changes_per_hour | float(3))) }}
               master_needs_raise: >
                 {{ (master_required_target | float(0)) > ((master_set_now | float(0)) + (inputs.hysteresis | float(0.6))) }}
               master_excessively_high: >
