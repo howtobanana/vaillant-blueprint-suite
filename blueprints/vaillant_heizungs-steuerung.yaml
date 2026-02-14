@@ -1178,7 +1178,7 @@ action:
             value_template: "{{ master_presence_helper != '' }}"
           - service: input_boolean.turn_on
             target:
-              entity_id: !input master_presence_helper
+              entity_id: "{{ master_presence_helper }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Master Presence ACTIVATED (sensor ON >{{ presence_activation_delay }}min)"
@@ -1192,7 +1192,7 @@ action:
             value_template: "{{ master_presence_helper != '' }}"
           - service: input_boolean.turn_off
             target:
-              entity_id: !input master_presence_helper
+              entity_id: "{{ master_presence_helper }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Master Presence DEACTIVATED (sensor OFF >{{ presence_deactivation_delay }}min)"
@@ -1206,7 +1206,7 @@ action:
             value_template: "{{ room2_presence_helper != '' }}"
           - service: input_boolean.turn_on
             target:
-              entity_id: !input room2_presence_helper
+              entity_id: "{{ room2_presence_helper }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Room2 Presence ACTIVATED"
@@ -1220,7 +1220,7 @@ action:
             value_template: "{{ room2_presence_helper != '' }}"
           - service: input_boolean.turn_off
             target:
-              entity_id: !input room2_presence_helper
+              entity_id: "{{ room2_presence_helper }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Room2 Presence DEACTIVATED"
@@ -1234,7 +1234,7 @@ action:
             value_template: "{{ room3_presence_helper != '' }}"
           - service: input_boolean.turn_on
             target:
-              entity_id: !input room3_presence_helper
+              entity_id: "{{ room3_presence_helper }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Room3 Presence ACTIVATED"
@@ -1248,7 +1248,7 @@ action:
             value_template: "{{ room3_presence_helper != '' }}"
           - service: input_boolean.turn_off
             target:
-              entity_id: !input room3_presence_helper
+              entity_id: "{{ room3_presence_helper }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Room3 Presence DEACTIVATED"
@@ -1262,7 +1262,7 @@ action:
             value_template: "{{ room4_presence_helper != '' }}"
           - service: input_boolean.turn_on
             target:
-              entity_id: !input room4_presence_helper
+              entity_id: "{{ room4_presence_helper }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Room4 Presence ACTIVATED"
@@ -1276,7 +1276,7 @@ action:
             value_template: "{{ room4_presence_helper != '' }}"
           - service: input_boolean.turn_off
             target:
-              entity_id: !input room4_presence_helper
+              entity_id: "{{ room4_presence_helper }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Room4 Presence DEACTIVATED"
@@ -1290,7 +1290,7 @@ action:
             value_template: "{{ room5_presence_helper != '' }}"
           - service: input_boolean.turn_on
             target:
-              entity_id: !input room5_presence_helper
+              entity_id: "{{ room5_presence_helper }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Room5 Presence ACTIVATED"
@@ -1304,7 +1304,7 @@ action:
             value_template: "{{ room5_presence_helper != '' }}"
           - service: input_boolean.turn_off
             target:
-              entity_id: !input room5_presence_helper
+              entity_id: "{{ room5_presence_helper }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Room5 Presence DEACTIVATED"
@@ -1598,29 +1598,53 @@ action:
         {% else %}
           {{ eco_temp }}
         {% endif %}
+      room_global_fallback_demand: >
+        {% set ns = namespace(active=false) %}
+        {% for ent in inputs.away_mode_boolean %}
+          {% if ent is string and ent != '' and is_state(ent, 'on') %}
+            {% set ns.active = true %}
+          {% endif %}
+        {% endfor %}
+        {% if ns.active %}
+          {{ away_temp }}
+        {% else %}
+          {{ eco_temp }}
+        {% endif %}
       room2_demand: >
-        {% if inputs.room2_enabled and ((room2_schedule_active_for_demand | bool(false)) or (room2_presence_for_demand | bool(false))) %}
+        {% set room2_sched = room2_schedule_active_for_demand | string | lower %}
+        {% set room2_pres = room2_presence_for_demand | string | lower %}
+        {% set room2_local_override = (room2_sched in ['true', 'on', '1']) or (room2_pres in ['true', 'on', '1']) %}
+        {% if (inputs.room2_enabled | string | lower) in ['true', 'on', '1'] and room2_local_override %}
           {{ room2_comfort_temp_for_demand }}
         {% else %}
-          {{ eco_temp }}
+          {{ room_global_fallback_demand }}
         {% endif %}
       room3_demand: >
-        {% if inputs.room3_enabled and ((room3_schedule_active_for_demand | bool(false)) or (room3_presence_for_demand | bool(false))) %}
+        {% set room3_sched = room3_schedule_active_for_demand | string | lower %}
+        {% set room3_pres = room3_presence_for_demand | string | lower %}
+        {% set room3_local_override = (room3_sched in ['true', 'on', '1']) or (room3_pres in ['true', 'on', '1']) %}
+        {% if (inputs.room3_enabled | string | lower) in ['true', 'on', '1'] and room3_local_override %}
           {{ room3_comfort_temp_for_demand }}
         {% else %}
-          {{ eco_temp }}
+          {{ room_global_fallback_demand }}
         {% endif %}
       room4_demand: >
-        {% if inputs.room4_enabled and ((room4_schedule_active_for_demand | bool(false)) or (room4_presence_for_demand | bool(false))) %}
+        {% set room4_sched = room4_schedule_active_for_demand | string | lower %}
+        {% set room4_pres = room4_presence_for_demand | string | lower %}
+        {% set room4_local_override = (room4_sched in ['true', 'on', '1']) or (room4_pres in ['true', 'on', '1']) %}
+        {% if (inputs.room4_enabled | string | lower) in ['true', 'on', '1'] and room4_local_override %}
           {{ room4_comfort_temp_for_demand }}
         {% else %}
-          {{ eco_temp }}
+          {{ room_global_fallback_demand }}
         {% endif %}
       room5_demand: >
-        {% if inputs.room5_enabled and ((room5_schedule_active_for_demand | bool(false)) or (room5_presence_for_demand | bool(false))) %}
+        {% set room5_sched = room5_schedule_active_for_demand | string | lower %}
+        {% set room5_pres = room5_presence_for_demand | string | lower %}
+        {% set room5_local_override = (room5_sched in ['true', 'on', '1']) or (room5_pres in ['true', 'on', '1']) %}
+        {% if (inputs.room5_enabled | string | lower) in ['true', 'on', '1'] and room5_local_override %}
           {{ room5_comfort_temp_for_demand }}
         {% else %}
-          {{ eco_temp }}
+          {{ room_global_fallback_demand }}
         {% endif %}
       global_max_demand: >
         {{ [
@@ -2488,7 +2512,7 @@ action:
               master_raise_allowed: >
                 {{ (master_needs_raise | bool(false)) and ((master_change_cooldown_ok_step55 | bool(false)) or ((master_target_delta_abs | float(0)) > 3.0) or (master_stuck_protection_active | bool(false))) }}
               master_drop_allowed: >
-                {{ (master_excessively_high | bool(false)) and (master_change_cooldown_ok_step55 | bool(false)) }}
+                {{ (master_needs_global_drop | bool(false)) and (master_change_cooldown_ok_step55 | bool(false)) }}
               master_write_allowed: >
                 {{ (not (room_window_trigger_event | bool(false))) and (not (master_forced_min_active | bool(false))) and ((master_raise_allowed | bool(false)) or (master_drop_allowed | bool(false))) }}
           - choose:
@@ -2503,6 +2527,11 @@ action:
                     data:
                       temperature: "{{ master_required_target }}"
                     continue_on_error: true
+                  - delay:
+                      seconds: 2
+                  - condition: template
+                    value_template: >
+                      {{ ((state_attr(inputs.master_climate, 'temperature') | float(0)) - (master_required_target | float(0))) | abs <= 0.11 }}
                   - service: input_datetime.set_datetime
                     target:
                       entity_id: "{{ inputs.master_last_write_helper }}"
@@ -2521,6 +2550,11 @@ action:
                     data:
                       temperature: "{{ master_required_target }}"
                     continue_on_error: true
+                  - delay:
+                      seconds: 2
+                  - condition: template
+                    value_template: >
+                      {{ ((state_attr(inputs.master_climate, 'temperature') | float(0)) - (master_required_target | float(0))) | abs <= 0.11 }}
                   - service: input_datetime.set_datetime
                     target:
                       entity_id: "{{ inputs.master_last_write_helper }}"
@@ -2537,6 +2571,11 @@ action:
                     data:
                       temperature: "{{ master_required_target }}"
                     continue_on_error: true
+                  - delay:
+                      seconds: 2
+                  - condition: template
+                    value_template: >
+                      {{ ((state_attr(inputs.master_climate, 'temperature') | float(0)) - (master_required_target | float(0))) | abs <= 0.11 }}
                   - service: input_datetime.set_datetime
                     target:
                       entity_id: "{{ inputs.master_last_write_helper }}"
