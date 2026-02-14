@@ -15,7 +15,7 @@ blueprint:
     **Autor:** bananapower | **Version:** v1.0 (Person-Based Edition)
 
   domain: automation
-  source_url: https://raw.githubusercontent.com/howtobanana/vaillant-blueprint/main/blueprints/vaillant_geofencing.yaml
+  source_url: https://raw.githubusercontent.com/howtobanana/vaillant-suite-blueprints/main/blueprints/vaillant_geofencing.yaml
   author: "bananapower"
 
   input:

@@ -1,23 +1,32 @@
 blueprint:
-  name: "(Vaillant) Heizungs-Steuerung"
+  name: "(Vaillant) Heizungssteuerung"
   description: |
-    🔥 **Modul 1: Die Kern-Heizungssteuerung**
+    **Zentrale Heizungslogik für Vaillant-Systeme**
 
-    Dies ist das Herzstueck der Vaillant v1.0 Suite. Es steuert exklusiv die Therme (Master) und die Heizkoerper (TRVs).
+    Dieses Modul bildet das Herzstück der Heizungssteuerung. Es koordiniert den Master-Thermostat und die Heizkörperventile (TRVs) basierend auf physikalischem Bedarf, Wetterdaten und Sicherheitslogik.
 
-    **Funktionen:**
-    - 🌡️ Intelligente Vorlauf-Steuerung (Master folgt dem Bedarf).
-    - 🪟 Sofortiger Frostschutz bei offenen Fenstern (Priorität 1).
-    - 🔋 Batterie-Schoner: Wartet bei manuellen Änderungen 30s (Debounce).
-    - 🌦️ Smart-Weather-Kompensation für ruhigere API-Nutzung.
+    **Kern-Funktionen:**
+    *   🛡️ **Dynamic Safety:** Unterscheidet zwischen Kälteeinbruch (Not-Aus) und Luftaustausch (Weiterheizen).
+    *   🔗 **Smart Follower:** Dynamische Offset-Steuerung für Nebenräume (folgen dem Master).
+    *   ⚡ **Echtzeit-Reaktion:** Sofortige Anpassung bei Statusänderungen ohne Latenz.
+    *   🧠 **Fail-Safe:** Mehrstufige Sicherheitslogik (Debounce, Frostschutz, 60min Time-Guard).
 
-    **Unabhängigkeit:**
-    Dieses Modul läuft autark. Für Zusatzfunktionen (Geofence, Warnungen, Lüften) bitte die anderen Module der Suite nutzen.
+    **Das Ökosystem:**
+    Entwickelt für den Betrieb im Verbund mit:
+    *   📍 `(Vaillant) Geofencing` (Anwesenheit & Eco).
+    *   💨 `(Vaillant) Lüftungs-Steuerung` (Luftaustausch & Feuchtigkeit).
+    *   ❤️ `(Vaillant) System-Diagnose` (Wartung & Batterien).
 
-    **Autor:** bananapower | **Version:** v1.0 (Microservices Edition)
+    **Voraussetzungen:**
+    Erfordert die **myVaillant** Integration (HACS). Besonderer Dank an die Entwickler dieser Integration für die Bereitstellung der Schnittstelle.
+
+    **Haftungsausschluss:**
+    Dies ist ein privates Projekt. Der Autor ist kein zertifizierter Installateur. Die Nutzung erfolgt auf eigene Gefahr. Für Schäden an der Anlage oder durch Fehlkonfiguration wird keine Haftung übernommen.
+
+    **Version:** 1.0 (Refactor) | **Autor:** BananaPower
 
   domain: automation
-  source_url: https://raw.githubusercontent.com/howtobanana/vaillant-blueprint/main/blueprints/vaillant_heizungs-steuerung.yaml
+  source_url: https://raw.githubusercontent.com/howtobanana/vaillant-suite-blueprints/main/blueprints/vaillant_heizungs-steuerung.yaml
   author: "bananapower"
 
   input:
@@ -661,16 +670,16 @@ blueprint:
           selector:
             entity:
               domain: climate
-        follower1_comfort_fixed:
-          name: "🌡️ Follower 1 Komfort (°C)"
+        follower1_offset:
+          name: "↘️ Follower 1 Offset (°C)"
           description: |
-            Soll-Temperatur wenn Master aktiv ist.
-            Beispiel: Master 21°C, Follower 19°C = -2°C Offset.
-          default: 19.0
+            Negativer Offset zum Master-Wert.
+            (Bsp: Master 21°C - 2°C Offset = 19°C). Passiver Raum.
+          default: -2.0
           selector:
             number:
-              min: 16
-              max: 24
+              min: -3.0
+              max: -0.5
               step: 0.5
               unit_of_measurement: "°C"
         follower1_window:
@@ -714,15 +723,16 @@ blueprint:
           selector:
             entity:
               domain: climate
-        follower2_comfort_fixed:
-          name: "🌡️ Follower 2 Komfort (°C)"
+        follower2_offset:
+          name: "↘️ Follower 2 Offset (°C)"
           description: |
-            Soll-Temperatur wenn Master aktiv ist.
-          default: 19.0
+            Negativer Offset zum Master-Wert.
+            (Bsp: Master 21°C - 2°C Offset = 19°C). Passiver Raum.
+          default: -2.0
           selector:
             number:
-              min: 16
-              max: 24
+              min: -3.0
+              max: -0.5
               step: 0.5
               unit_of_measurement: "°C"
         follower2_window:
@@ -901,31 +911,80 @@ trigger:
       entity_id: !input master_window
     id: master_window_change
 
-  # Smart-Window Trigger (Master)
-  - platform: state
-    entity_id: !input master_smart_window
+  # Smart-Window Trigger (Master, optional-safe)
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'on') }}"
+    variables:
+      entity: !input master_smart_window
+    id: master_smart_window_change
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'off') }}"
+    variables:
+      entity: !input master_smart_window
     id: master_smart_window_change
 
-  # Smart-Window Trigger (Rooms)
-  - platform: state
-    entity_id: !input room2_smart_window
+  # Smart-Window Trigger (Rooms, optional-safe)
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'on') }}"
+    variables:
+      entity: !input room2_smart_window
     id: room2_smart_window_change
-  - platform: state
-    entity_id: !input room3_smart_window
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'off') }}"
+    variables:
+      entity: !input room2_smart_window
+    id: room2_smart_window_change
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'on') }}"
+    variables:
+      entity: !input room3_smart_window
     id: room3_smart_window_change
-  - platform: state
-    entity_id: !input room4_smart_window
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'off') }}"
+    variables:
+      entity: !input room3_smart_window
+    id: room3_smart_window_change
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'on') }}"
+    variables:
+      entity: !input room4_smart_window
     id: room4_smart_window_change
-  - platform: state
-    entity_id: !input room5_smart_window
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'off') }}"
+    variables:
+      entity: !input room4_smart_window
+    id: room4_smart_window_change
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'on') }}"
+    variables:
+      entity: !input room5_smart_window
+    id: room5_smart_window_change
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'off') }}"
+    variables:
+      entity: !input room5_smart_window
     id: room5_smart_window_change
 
-  # Follower-Window Trigger
-  - platform: state
-    entity_id: !input follower1_window
+  # Follower-Window Trigger (optional-safe)
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'on') }}"
+    variables:
+      entity: !input follower1_window
     id: follower1_window_change
-  - platform: state
-    entity_id: !input follower2_window
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'off') }}"
+    variables:
+      entity: !input follower1_window
+    id: follower1_window_change
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'on') }}"
+    variables:
+      entity: !input follower2_window
+    id: follower2_window_change
+  - platform: template
+    value_template: "{{ entity != '' and is_state(entity, 'off') }}"
+    variables:
+      entity: !input follower2_window
     id: follower2_window_change
 
   - platform: event
@@ -1048,13 +1107,13 @@ action:
         follower1_enabled: !input follower1_enabled
         follower1_name: !input follower1_name
         follower1_climate: !input follower1_climate
-        follower1_comfort_fixed: !input follower1_comfort_fixed
+        follower1_offset: !input follower1_offset
         follower1_window: !input follower1_window
         follower1_temp_sensor: !input follower1_temp_sensor
         follower2_enabled: !input follower2_enabled
         follower2_name: !input follower2_name
         follower2_climate: !input follower2_climate
-        follower2_comfort_fixed: !input follower2_comfort_fixed
+        follower2_offset: !input follower2_offset
         follower2_window: !input follower2_window
         follower2_temp_sensor: !input follower2_temp_sensor
       outdoor_temp_sensor_configured: >
@@ -1159,13 +1218,121 @@ action:
         {% else %}
           {{ expand(inputs.master_presence_sensors) | selectattr('state', 'eq', 'on') | list | length > 0 }}
         {% endif %}
-      master_target_temp: >
-        {% if (away_mode_should_be_active | bool(false)) or (away_mode_entity_on | bool(false)) %}
-          {{ away_temp }}
-        {% elif master_schedule_active or master_presence_detected %}
+      master_demand: >
+        {% if master_schedule_active or master_presence_detected %}
           {{ master_comfort_temp }}
         {% else %}
           {{ eco_temp }}
+        {% endif %}
+      room2_comfort_temp_for_demand: >
+        {% if inputs.room2_comfort_input != "" %}
+          {{ states(inputs.room2_comfort_input) | float(inputs.room2_comfort_fixed) }}
+        {% else %}
+          {{ inputs.room2_comfort_fixed }}
+        {% endif %}
+      room2_schedule_active_for_demand: >
+        {% if inputs.room2_enabled and inputs.room2_schedule != "" %}
+          {{ is_state(inputs.room2_schedule, 'on') }}
+        {% else %}
+          false
+        {% endif %}
+      room2_presence_for_demand: >
+        {% if not inputs.room2_enabled or (inputs.room2_presence_sensors | length == 0) %}
+          false
+        {% else %}
+          {{ expand(inputs.room2_presence_sensors) | selectattr('state', 'eq', 'on') | list | length > 0 }}
+        {% endif %}
+      room2_demand: >
+        {% if inputs.room2_enabled and ((room2_schedule_active_for_demand | bool(false)) or (room2_presence_for_demand | bool(false))) %}
+          {{ room2_comfort_temp_for_demand }}
+        {% else %}
+          {{ eco_temp }}
+        {% endif %}
+      room3_comfort_temp_for_demand: >
+        {% if inputs.room3_comfort_input != "" %}
+          {{ states(inputs.room3_comfort_input) | float(inputs.room3_comfort_fixed) }}
+        {% else %}
+          {{ inputs.room3_comfort_fixed }}
+        {% endif %}
+      room3_schedule_active_for_demand: >
+        {% if inputs.room3_enabled and inputs.room3_schedule != "" %}
+          {{ is_state(inputs.room3_schedule, 'on') }}
+        {% else %}
+          false
+        {% endif %}
+      room3_presence_for_demand: >
+        {% if not inputs.room3_enabled or (inputs.room3_presence_sensors | length == 0) %}
+          false
+        {% else %}
+          {{ expand(inputs.room3_presence_sensors) | selectattr('state', 'eq', 'on') | list | length > 0 }}
+        {% endif %}
+      room3_demand: >
+        {% if inputs.room3_enabled and ((room3_schedule_active_for_demand | bool(false)) or (room3_presence_for_demand | bool(false))) %}
+          {{ room3_comfort_temp_for_demand }}
+        {% else %}
+          {{ eco_temp }}
+        {% endif %}
+      room4_comfort_temp_for_demand: >
+        {% if inputs.room4_comfort_input != "" %}
+          {{ states(inputs.room4_comfort_input) | float(inputs.room4_comfort_fixed) }}
+        {% else %}
+          {{ inputs.room4_comfort_fixed }}
+        {% endif %}
+      room4_schedule_active_for_demand: >
+        {% if inputs.room4_enabled and inputs.room4_schedule != "" %}
+          {{ is_state(inputs.room4_schedule, 'on') }}
+        {% else %}
+          false
+        {% endif %}
+      room4_presence_for_demand: >
+        {% if not inputs.room4_enabled or (inputs.room4_presence_sensors | length == 0) %}
+          false
+        {% else %}
+          {{ expand(inputs.room4_presence_sensors) | selectattr('state', 'eq', 'on') | list | length > 0 }}
+        {% endif %}
+      room4_demand: >
+        {% if inputs.room4_enabled and ((room4_schedule_active_for_demand | bool(false)) or (room4_presence_for_demand | bool(false))) %}
+          {{ room4_comfort_temp_for_demand }}
+        {% else %}
+          {{ eco_temp }}
+        {% endif %}
+      room5_comfort_temp_for_demand: >
+        {% if inputs.room5_comfort_input != "" %}
+          {{ states(inputs.room5_comfort_input) | float(inputs.room5_comfort_fixed) }}
+        {% else %}
+          {{ inputs.room5_comfort_fixed }}
+        {% endif %}
+      room5_schedule_active_for_demand: >
+        {% if inputs.room5_enabled and inputs.room5_schedule != "" %}
+          {{ is_state(inputs.room5_schedule, 'on') }}
+        {% else %}
+          false
+        {% endif %}
+      room5_presence_for_demand: >
+        {% if not inputs.room5_enabled or (inputs.room5_presence_sensors | length == 0) %}
+          false
+        {% else %}
+          {{ expand(inputs.room5_presence_sensors) | selectattr('state', 'eq', 'on') | list | length > 0 }}
+        {% endif %}
+      room5_demand: >
+        {% if inputs.room5_enabled and ((room5_schedule_active_for_demand | bool(false)) or (room5_presence_for_demand | bool(false))) %}
+          {{ room5_comfort_temp_for_demand }}
+        {% else %}
+          {{ eco_temp }}
+        {% endif %}
+      global_max_demand: >
+        {{ [
+          master_demand | float(eco_temp),
+          room2_demand | float(eco_temp),
+          room3_demand | float(eco_temp),
+          room4_demand | float(eco_temp),
+          room5_demand | float(eco_temp)
+        ] | max }}
+      master_target_temp: >
+        {% if (away_mode_should_be_active | bool(false)) or (away_mode_entity_on | bool(false)) %}
+          {{ away_temp }}
+        {% else %}
+          {{ global_max_demand }}
         {% endif %}
       master_window_open: >
         {{ (is_state(inputs.master_window, 'on') if inputs.master_window != '' else false) or (is_state(inputs.master_smart_window, 'on') if inputs.master_smart_window != '' else false) }}
@@ -1191,7 +1358,7 @@ action:
       master_window_recently_closed: >
         {% if not (master_window_sensor_configured | bool(false)) %}
           false
-        {% elif trigger is defined and trigger is not none and trigger.id is defined and trigger.id == 'master_window_change' %}
+        {% elif trigger is defined and trigger is not none and trigger.id is defined and trigger.id in ['master_window_change', 'master_smart_window_change'] %}
           {% if trigger.to_state is defined and trigger.to_state is not none and trigger.from_state is defined and trigger.from_state is not none %}
             {{ (trigger.from_state.state == 'on') and (trigger.to_state.state == 'off') }}
           {% else %}
@@ -1789,13 +1956,8 @@ action:
               follower1_window_open: >
                 {{ (is_state(inputs.follower1_window, 'on') if inputs.follower1_window != '' else false) }}
               follower1_target_temp: >
-                {% if (away_mode_should_be_active | bool(false)) or (away_mode_entity_on | bool(false)) %}
-                  {{ away_temp }}
-                {% elif master_schedule_active or master_presence_detected %}
-                  {{ inputs.follower1_comfort_fixed }}
-                {% else %}
-                  {{ eco_temp }}
-                {% endif %}
+                {% set raw_target = (master_target_final | float(inputs.min_trv_temp)) + (inputs.follower1_offset | float(-2.0)) %}
+                {{ [inputs.min_trv_temp | float(12), raw_target] | max }}
               follower1_final_temp: >
                 {% if follower1_window_open %}
                   {{ inputs.min_trv_temp }}
@@ -1846,13 +2008,8 @@ action:
               follower2_window_open: >
                 {{ (is_state(inputs.follower2_window, 'on') if inputs.follower2_window != '' else false) }}
               follower2_target_temp: >
-                {% if (away_mode_should_be_active | bool(false)) or (away_mode_entity_on | bool(false)) %}
-                  {{ away_temp }}
-                {% elif master_schedule_active or master_presence_detected %}
-                  {{ inputs.follower2_comfort_fixed }}
-                {% else %}
-                  {{ eco_temp }}
-                {% endif %}
+                {% set raw_target = (master_target_final | float(inputs.min_trv_temp)) + (inputs.follower2_offset | float(-2.0)) %}
+                {{ [inputs.min_trv_temp | float(12), raw_target] | max }}
               follower2_final_temp: >
                 {% if follower2_window_open %}
                   {{ inputs.min_trv_temp }}
@@ -1931,7 +2088,9 @@ action:
               away_mode_active_effective: >
                 {{ (away_mode_should_be_active | bool(false)) or (away_mode_entity_on | bool(false)) }}
               master_safety_floor: >
-                {% if away_mode_active_effective | bool(false) %}
+                {% if summer_mode | bool(false) %}
+                  {{ inputs.min_trv_temp | float(12) }}
+                {% elif away_mode_active_effective | bool(false) %}
                   {{ inputs.min_trv_temp | float(12) }}
                 {% else %}
                   {{ eco_temp | float(19) }}
@@ -2026,12 +2185,16 @@ action:
                 {{ [hi, master_min | float(inputs.min_trv_temp | float(12))] | max }}
               master_set_now: "{{ state_attr(inputs.master_climate, 'temperature') | float(0) }}"
               master_target_delta_abs: "{{ ((master_required_target | float(0)) - (master_set_now | float(0))) | abs }}"
+              master_needs_global_boost: >
+                {{ (not (away_mode_active_effective | bool(false))) and ((master_set_now | float(0)) < ((global_max_demand | float(0)) - 0.1)) }}
+              master_needs_global_drop: >
+                {{ (not (away_mode_active_effective | bool(false))) and ((master_set_now | float(0)) > ((global_max_demand | float(0)) + 0.1)) }}
               effective_max_changes_per_hour: "{{ [inputs.max_changes_per_hour | float(3), 2] | max }}"
               master_change_min_interval_min_step55: "{{ 60 / (effective_max_changes_per_hour | float(3)) }}"
               master_last_update_step55: >
                 {% set st = expand([inputs.master_climate]) | first %}
-                {% if st is not none and st.last_changed is defined %}
-                  {{ st.last_changed }}
+                {% if st is not none and st.last_updated is defined %}
+                  {{ st.last_updated }}
                 {% else %}
                   {{ now() }}
                 {% endif %}
@@ -2047,16 +2210,40 @@ action:
               master_needs_raise: >
                 {{ (master_required_target | float(0)) > ((master_set_now | float(0)) + (inputs.hysteresis | float(0.6))) }}
               master_excessively_high: >
-                {{ (master_set_now | float(0)) > ((master_required_target | float(0)) + 3.0) }}
+                {{ master_needs_global_drop | bool(false) }}
               master_stuck_protection_active: >
                 {{ (master_needs_raise | bool(false)) and ((master_last_update_age_step55 | float(0)) >= 1800) }}
               master_raise_allowed: >
                 {{ (master_needs_raise | bool(false)) and ((master_change_cooldown_ok_step55 | bool(false)) or ((master_target_delta_abs | float(0)) > 3.0) or (master_stuck_protection_active | bool(false))) }}
               master_drop_allowed: >
-                {{ master_excessively_high | bool(false) }}
+                {{ (master_excessively_high | bool(false)) and (master_change_cooldown_ok_step55 | bool(false)) }}
               master_write_allowed: >
                 {{ (not (room_window_trigger_event | bool(false))) and (not (master_forced_min_active | bool(false))) and ((master_raise_allowed | bool(false)) or (master_drop_allowed | bool(false))) }}
           - choose:
+              # PATH A (CRITICAL): forced-min writes bypass cooldown
+              - conditions:
+                  - "{{ master_forced_min_active | bool(false) }}"
+                  - "{{ (master_target_delta_abs | float(0)) > 0.5 }}"
+                sequence:
+                  - service: climate.set_temperature
+                    target:
+                      entity_id: "{{ inputs.master_climate }}"
+                    data:
+                      temperature: "{{ master_required_target }}"
+                    continue_on_error: true
+              # PATH B (CRITICAL): highest bidder boost bypasses cooldown
+              - conditions:
+                  - "{{ not (master_forced_min_active | bool(false)) }}"
+                  - "{{ master_needs_global_boost | bool(false) }}"
+                  - "{{ (master_target_delta_abs | float(0)) > 0.1 }}"
+                sequence:
+                  - service: climate.set_temperature
+                    target:
+                      entity_id: "{{ inputs.master_climate }}"
+                    data:
+                      temperature: "{{ master_required_target }}"
+                    continue_on_error: true
+              # PATH C (COMFORT): regular writes follow cooldown policy
               - conditions:
                   - "{{ master_write_allowed }}"
                 sequence:
