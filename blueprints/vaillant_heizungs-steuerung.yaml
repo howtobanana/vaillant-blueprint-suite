@@ -1,9 +1,19 @@
 blueprint:
   name: "(Vaillant) Heizungssteuerung"
   description: |
-    **Zentrale Heizungslogik für Vaillant-Systeme**
+    🔥 **Modul 1: Core Heating (v2.0)**
 
-    Dieses Modul bildet das Herzstück der Heizungssteuerung. Es koordiniert den Master-Thermostat und die Heizkörperventile (TRVs) basierend auf physikalischem Bedarf, Wetterdaten und Sicherheitslogik.
+    Zentrale Heizungssteuerung mit Multi-Room Management.
+
+    ⚡ **v2.0 ÄNDERUNGEN:**
+    - Präsenz: Nutzt Template Sensors (binary_sensor.vaillant_*_presence)
+    - Away Mode: Nutzt Template Sensor (binary_sensor.vaillant_global_away)
+    - Keine Helper-Konfiguration mehr nötig!
+
+    📋 **VORAUSSETZUNGEN:**
+    - vaillant-templates.yaml deployed
+    - Template Sensors aktiv (21 Sensoren)
+    - Geofencing Blueprint für Away Mode (optional)
 
     **Kern-Funktionen:**
     *   🛡️ **Dynamic Safety:** Unterscheidet zwischen Kälteeinbruch (Not-Aus) und Luftaustausch (Weiterheizen).
@@ -23,7 +33,7 @@ blueprint:
     **Haftungsausschluss:**
     Dies ist ein privates Projekt. Der Autor ist kein zertifizierter Installateur. Die Nutzung erfolgt auf eigene Gefahr. Für Schäden an der Anlage oder durch Fehlkonfiguration wird keine Haftung übernommen.
 
-    **Version:** 1.0 (Refactor) | **Autor:** BananaPower
+    **Version:** 2.0 (Template Sensor Edition) | **Autor:** BananaPower
 
   domain: automation
   source_url: https://raw.githubusercontent.com/howtobanana/vaillant-suite-blueprints/main/blueprints/vaillant_heizungs-steuerung.yaml
@@ -136,18 +146,15 @@ blueprint:
               step: 0.5
               unit_of_measurement: "°C"
 
-        away_mode_boolean:
-          name: "Away-Mode Helper (input_boolean)"
-          description: |
-
-            Globaler Abwesenheits-Schalter. Aktiviert sofort den Away-Sollwert. Mehrere Entitys werden als ODER ausgewertet.
-            Erforderlicher Helfer-Typ: **Umschalter** (input_boolean).
-
-          default: []
-          selector:
-            entity:
-              domain: input_boolean
-              multiple: true
+        # ═══════════════════════════════════════════════════════════
+        # v2.0: Away Mode Konfiguration entfernt
+        #
+        # Away Mode wird jetzt direkt aus Template Sensor gelesen:
+        # - binary_sensor.vaillant_global_away
+        #
+        # Gesteuert durch Geofencing Blueprint + Template Sensor
+        # Keine UI-Konfiguration mehr nötig!
+        # ═══════════════════════════════════════════════════════════
         max_changes_per_hour:
           name: "🔧 Max Änderungen/h"
           description: |
@@ -231,53 +238,20 @@ blueprint:
           selector:
             entity:
               domain: schedule
-        master_presence_sensors:
-          name: "👀 Master Präsenz"
-          description: |
-
-            Optionale Präsenzsensoren für bedarfsgeführten Komfortbetrieb im Master-Raum.
-
-          default: []
-          selector:
-            entity:
-              domain: binary_sensor
-              device_class: occupancy
-              multiple: true
-        presence_activation_delay:
-          name: "⏱️ Präsenz Aktivierung (min)"
-          description: |
-
-            Verzögerung bis Präsenz als aktiv bewertet wird.
-
-          default: 2
-          selector:
-            number:
-              min: 0
-              max: 10
-              step: 1
-              unit_of_measurement: "min"
-        presence_deactivation_delay:
-          name: "⏱️ Präsenz Nachlauf (min)"
-          description: |
-
-            Nachlaufzeit bis Rückfall auf Eco nach letzter Präsenz.
-
-          default: 30
-          selector:
-            number:
-              min: 30
-              max: 120
-              step: 5
-              unit_of_measurement: "min"
-        master_presence_helper:
-          name: "Master Presence Helper Entity"
-          description: |
-
-            Input boolean to store master presence state. Create manually: Settings -> Helpers -> Toggle -> Name: 'Heating: Master Presence Active'
-
-          selector:
-            entity:
-              domain: input_boolean
+        # ═══════════════════════════════════════════════════════════
+        # v2.0: Präsenz-Konfiguration entfernt
+        #
+        # Präsenz wird jetzt direkt aus Template Sensoren gelesen:
+        # - binary_sensor.vaillant_master_presence
+        # - binary_sensor.vaillant_room3_presence
+        # - etc.
+        #
+        # Delays werden in vaillant-templates.yaml konfiguriert:
+        # - delay_on: 2min
+        # - delay_off: 30min
+        #
+        # Keine UI-Konfiguration mehr nötig!
+        # ═══════════════════════════════════════════════════════════
         enable_master_presence_priority:
           name: "👑 Master gewinnt bei Präsenz"
           description: |
@@ -579,41 +553,7 @@ blueprint:
           selector:
             entity:
               domain: schedule
-        room2_presence_sensors:
-          name: "👀 Präsenz"
-          description: |
-
-            Optionale Präsenzsensoren für Komfortfreigabe in Raum 2.
-
-          default: []
-          selector:
-            entity:
-              domain: binary_sensor
-              device_class: occupancy
-              multiple: true
-        room2_presence_delay:
-          name: "⏱️ Nachlauf (min)"
-          description: |
-
-            Nachlaufzeit bis Rückfall auf Eco in Raum 2.
-
-          default: 30
-          selector:
-            number:
-              min: 15
-              max: 120
-              step: 5
-              unit_of_measurement: "min"
-        room2_presence_helper:
-          name: "Room2 Presence Helper Entity"
-          description: |
-
-            Input boolean for room2 presence state. Create manually: Settings -> Helpers -> Toggle -> Name: 'Heating: Room2 Presence Active'
-
-          default: ""
-          selector:
-            entity:
-              domain: input_boolean
+        # Room2 Presence: Removed - now uses binary_sensor.vaillant_room2_presence
         room2_window:
           name: "🪟 Fenster"
           description: |
@@ -709,41 +649,7 @@ blueprint:
           selector:
             entity:
               domain: schedule
-        room3_presence_sensors:
-          name: "👀 Präsenz"
-          description: |
-
-            Optionale Präsenzsensoren für Komfortfreigabe in Raum 3.
-
-          default: []
-          selector:
-            entity:
-              domain: binary_sensor
-              device_class: occupancy
-              multiple: true
-        room3_presence_delay:
-          name: "⏱️ Nachlauf (min)"
-          description: |
-
-            Nachlaufzeit bis Rückfall auf Eco in Raum 3.
-
-          default: 30
-          selector:
-            number:
-              min: 15
-              max: 120
-              step: 5
-              unit_of_measurement: "min"
-        room3_presence_helper:
-          name: "Room3 Presence Helper Entity"
-          description: |
-
-            Input boolean for room3 presence state. Create manually: Settings -> Helpers -> Toggle -> Name: 'Heating: Room3 Presence Active'
-
-          default: ""
-          selector:
-            entity:
-              domain: input_boolean
+        # Room3 Presence: Removed - now uses binary_sensor.vaillant_room3_presence
         room3_window:
           name: "🪟 Fenster"
           description: |
@@ -839,41 +745,7 @@ blueprint:
           selector:
             entity:
               domain: schedule
-        room4_presence_sensors:
-          name: "👀 Präsenz"
-          description: |
-
-            Optionale Präsenzsensoren für Komfortfreigabe in Raum 4.
-
-          default: []
-          selector:
-            entity:
-              domain: binary_sensor
-              device_class: occupancy
-              multiple: true
-        room4_presence_delay:
-          name: "⏱️ Nachlauf (min)"
-          description: |
-
-            Nachlaufzeit bis Rückfall auf Eco in Raum 4.
-
-          default: 20
-          selector:
-            number:
-              min: 15
-              max: 120
-              step: 5
-              unit_of_measurement: "min"
-        room4_presence_helper:
-          name: "Room4 Presence Helper Entity"
-          description: |
-
-            Input boolean for room4 presence state. Create manually: Settings -> Helpers -> Toggle -> Name: 'Heating: Room4 Presence Active'
-
-          default: ""
-          selector:
-            entity:
-              domain: input_boolean
+        # Room4 Presence: Removed - now uses binary_sensor.vaillant_room4_presence
         room4_window:
           name: "🪟 Fenster"
           description: |
@@ -969,41 +841,7 @@ blueprint:
           selector:
             entity:
               domain: schedule
-        room5_presence_sensors:
-          name: "👀 Präsenz"
-          description: |
-
-            Optionale Präsenzsensoren für Komfortfreigabe in Raum 5.
-
-          default: []
-          selector:
-            entity:
-              domain: binary_sensor
-              device_class: occupancy
-              multiple: true
-        room5_presence_delay:
-          name: "⏱️ Nachlauf (min)"
-          description: |
-
-            Nachlaufzeit bis Rückfall auf Eco in Raum 5.
-
-          default: 45
-          selector:
-            number:
-              min: 15
-              max: 120
-              step: 5
-              unit_of_measurement: "min"
-        room5_presence_helper:
-          name: "Room5 Presence Helper Entity"
-          description: |
-
-            Input boolean for room5 presence state. Create manually: Settings -> Helpers -> Toggle -> Name: 'Heating: Room5 Presence Active'
-
-          default: ""
-          selector:
-            entity:
-              domain: input_boolean
+        # Room5 Presence: Removed - now uses binary_sensor.vaillant_room5_presence
         room5_window:
           name: "🪟 Fenster"
           description: |

@@ -1,19 +1,19 @@
 blueprint:
   name: "(Vaillant) System-Diagnose"
   description: |
-    🩺 **Modul 2: Der System-Wächter**
+    🔧 **Modul System-Diagnose (v2.0)**
 
-    Überwacht die Gesundheit Ihrer Vaillant-Heizung und Sensoren. Sendet Warnungen, greift aber niemals in die Heizung ein.
+    Monitoring und Alerts für Vaillant Heating System.
 
-    **Funktionen:**
-    - 🔋 Batterie-Check aller TRVs & Sensoren.
-    - 📡 Offline-Erkennung (tote Geräte finden).
-    - 💧 Wasserdruck-Überwachung (Schutz vor Trockenlauf).
-    - 📉 Effizienz-Check (COP/JAZ Warnungen).
-    - ⚠️ Master-Thermostat Offline Alarm.
+    ⚡ **v2.0 INTELLIGENCE:**
+    - Priority Alerts für aktiv genutzte Räume
+    - Away Mode Context in Meldungen
+    - Occupancy-aware notifications
 
-    **Kompatibilität:**
-    Kann parallel zu "Core Heating" oder alleine genutzt werden.
+    📋 **REQUIREMENTS:**
+    ✅ vaillant-templates.yaml deployed
+    ✅ Presence Sensors: binary_sensor.vaillant_*_presence
+    ✅ Away Sensor: binary_sensor.vaillant_global_away
 
     **Autor:** bananapower | **Version:** v2.0 (Microservices Edition)
 

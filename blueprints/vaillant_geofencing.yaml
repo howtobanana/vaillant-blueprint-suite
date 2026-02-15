@@ -1,16 +1,28 @@
 blueprint:
   name: "(Vaillant) Geofencing"
   description: |
-    🌍 **Modul Geofencing & Anwesenheit (Smart Zone)**
+    🌍 **Modul Geofencing (v2.0)**
 
-    Schlanke Radius-/Personen-Logik für den globalen Away-Helper.
-    Keine Physik-/ETA-Berechnung mehr, nur robuste Distanz- und Person-Regeln.
+    Automatische Away Mode Steuerung via GPS/Proximity.
 
-    **Funktionen:**
-    - 📍 Distanzbasierte Away-Entscheidung über `proximity`.
-    - 👤 Person-basierter Home-Abgleich (`person`-Entity).
-    - ⏱️ Kurzabwesenheits-Filter (Timeout).
-    - 🎚️ Steuert den zentralen "Away-Mode Helper" für Modul 1.
+    ⚡ **v2.0 INTEGRATION:**
+
+    DATA FLOW:
+    1. GPS → person.you (home/not_home)
+    2. Geofencing Blueprint → input_boolean.global_away (5min timeout)
+    3. Template Sensor → binary_sensor.vaillant_global_away (15min delay)
+    4. Core/Ventilation/Diagnose → Read binary_sensor
+
+    DELAYS:
+    - Geofencing: 5min (short trips ignored)
+    - Template: 15min (GPS flapping absorbed)
+    - TOTAL: ~20min activation, ~3min deactivation
+
+    📋 **REQUIREMENTS:**
+    ✅ Person Entity mit Mobile App tracking
+    ✅ Proximity Entity (proximity.home)
+    ✅ input_boolean.global_away erstellt
+    ✅ vaillant-templates.yaml deployed
 
     **Autor:** bananapower | **Version:** v2.0 (Person-Based Edition)
 
@@ -95,14 +107,21 @@ blueprint:
               step: 1
               unit_of_measurement: "min"
         away_mode_boolean:
-          name: "Zu steuernder Away-Helper"
+          name: "Away Helper (input_boolean.global_away)"
           description: >
-            Dieser input_boolean wird AN/AUS geschaltet und vom Template Sensor
-            binary_sensor.vaillant_global_away gelesen (mit Delays).
-            Erstellen: Einstellungen -> Geräte & Dienste -> Helfer -> Umschalter (input_boolean).
-            Empfohlener Name: input_boolean.global_away
-            ⚠️ v2.0: Blueprints lesen NICHT direkt diesen Helper, sondern den Template Sensor!
-            Der Helper ist nur noch die "Datenquelle" für den Template Sensor.
+            🔹 v2.0 ARCHITEKTUR:
+            Dieser Blueprint SETZT: input_boolean.global_away
+            Template Sensor LIEST: input_boolean.global_away (mit 15min delay)
+            Andere Blueprints LESEN: binary_sensor.vaillant_global_away
+            ⚙️ SETUP:
+            1. Erstelle Helper: Settings → Helpers → Toggle
+            2. Name: "Global Away"
+            3. Entity ID: input_boolean.global_away
+            4. Wähle hier: input_boolean.global_away
+            ⚡ DELAY CHAIN:
+            - Geofencing: 5min short_absence_timeout
+            - Template Sensor: 15min delay_on
+            - TOTAL: ~20min bis Away vollständig aktiv
           default: []
           selector:
             entity:

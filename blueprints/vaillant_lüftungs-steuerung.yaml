@@ -1,18 +1,17 @@
 blueprint:
   name: "(Vaillant) Lüftungs-Steuerung"
   description: |
-    🪟 **Modul 3: Lüftungs-Assistent**
+    🪟 **Modul Lüftungs-Steuerung (v2.0)**
 
-    Managt das Stoßlüften und schützt vor vergessenen Fenstern. Unabhängig von der Heizung.
+    Smart ventilation reminders mit Presence-Awareness.
 
-    **Funktionen:**
-    - 🌬️ Erinnerung zum Lüften (Zeit, CO2 oder Feuchte).
-    - ⏱️ Close-Timer: Erinnert ans Schließen nach X Minuten.
-    - 🚨 Eskalation: Nerviger Alarm, wenn Fenster offen bleiben.
-    - 🌧️ Sicherheits-Warnung bei Regen oder Verlassen des Hauses.
+    ⚡ **v2.0 FEATURES:**
+    - Reminders nur wenn jemand zu Hause (binary_sensor.vaillant_any_presence)
+    - Critical Window Alerts (binary_sensor.vaillant_critical_window_state)
+    - Away Mode koordiniert mit Core Heating (binary_sensor.vaillant_global_away)
 
-    **Info:**
-    Dieses Modul sendet nur Nachrichten. Das "Core Heating" Modul erkennt die offenen Fenster separat und stoppt die Heizung automatisch.
+    📋 **REQUIREMENTS:**
+    ✅ vaillant-templates.yaml deployed
 
     **Autor:** bananapower | **Version:** v2.0 (Microservices Edition)
 
@@ -43,13 +42,14 @@ blueprint:
           selector:
             entity:
               domain: weather
-        away_mode_boolean:
-          name: "🏠 Away-Mode Helper"
-          description: |
-            Global Away-Helper for safety check (same as Core Heating).
-          selector:
-            entity:
-              domain: input_boolean
+        # ═══════════════════════════════════════════════════════════
+        # v2.0: Away Mode Input entfernt
+        #
+        # Away Mode wird aus Template Sensor gelesen:
+        # - binary_sensor.vaillant_global_away
+        #
+        # Keine UI-Konfiguration mehr nötig!
+        # ═══════════════════════════════════════════════════════════
 
         enable_daily_reminder:
           name: "🔘 Tägliche Erinnerung aktiv"
