@@ -1125,66 +1125,11 @@ trigger:
   # ============================================
   # PRESENCE TRIGGERS
   # ============================================
-  - platform: state
-    entity_id: !input master_presence_sensors
-    to: "on"
-    for:
-      minutes: !input presence_activation_delay
-    id: master_presence_on
-  - platform: state
-    entity_id: !input master_presence_sensors
-    to: "off"
-    for:
-      minutes: !input presence_deactivation_delay
-    id: master_presence_off
-  - platform: state
-    entity_id: !input room2_presence_sensors
-    to: "on"
-    for:
-      minutes: !input room2_presence_delay
-    id: room2_presence_on
-  - platform: state
-    entity_id: !input room2_presence_sensors
-    to: "off"
-    for:
-      minutes: !input room2_presence_delay
-    id: room2_presence_off
-  - platform: state
-    entity_id: !input room3_presence_sensors
-    to: "on"
-    for:
-      minutes: !input room3_presence_delay
-    id: room3_presence_on
-  - platform: state
-    entity_id: !input room3_presence_sensors
-    to: "off"
-    for:
-      minutes: !input room3_presence_delay
-    id: room3_presence_off
-  - platform: state
-    entity_id: !input room4_presence_sensors
-    to: "on"
-    for:
-      minutes: !input room4_presence_delay
-    id: room4_presence_on
-  - platform: state
-    entity_id: !input room4_presence_sensors
-    to: "off"
-    for:
-      minutes: !input room4_presence_delay
-    id: room4_presence_off
-  - platform: state
-    entity_id: !input room5_presence_sensors
-    to: "on"
-    for:
-      minutes: !input room5_presence_delay
-    id: room5_presence_on
-  - platform: state
-    entity_id: !input room5_presence_sensors
-    to: "off"
-    for:
-      minutes: !input room5_presence_delay
-    id: room5_presence_off
+  # [ENTFERNT] Master Presence Trigger - jetzt über Template-Sensor binary_sensor.vaillant_master_presence
+  # [ENTFERNT] Room2 Presence Trigger - jetzt über Template-Sensor binary_sensor.vaillant_room2_presence
+  # [ENTFERNT] Room3 Presence Trigger - jetzt über Template-Sensor binary_sensor.vaillant_room3_presence
+  # [ENTFERNT] Room4 Presence Trigger - jetzt über Template-Sensor binary_sensor.vaillant_room4_presence
+  # [ENTFERNT] Room5 Presence Trigger - jetzt über Template-Sensor binary_sensor.vaillant_room5_presence
 
   # ============================================
   # SCHEDULED TRIGGER (for temp logic)
@@ -1199,157 +1144,10 @@ action:
   # ============================================
   # PRESENCE STATE MANAGEMENT
   # ============================================
-  - variables:
-      master_presence_helper: !input master_presence_helper
-      room2_presence_helper: !input room2_presence_helper
-      room3_presence_helper: !input room3_presence_helper
-      room4_presence_helper: !input room4_presence_helper
-      room5_presence_helper: !input room5_presence_helper
-      presence_activation_delay: !input presence_activation_delay
-      presence_deactivation_delay: !input presence_deactivation_delay
-  - choose:
-      - conditions:
-          - condition: trigger
-            id: master_presence_on
-        sequence:
-          - condition: template
-            value_template: "{{ master_presence_helper != '' }}"
-          - service: input_boolean.turn_on
-            target:
-              entity_id: "{{ master_presence_helper }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Master Presence ACTIVATED (sensor ON >{{ presence_activation_delay }}min)"
-              level: info
-          - stop: ""
-      - conditions:
-          - condition: trigger
-            id: master_presence_off
-        sequence:
-          - condition: template
-            value_template: "{{ master_presence_helper != '' }}"
-          - service: input_boolean.turn_off
-            target:
-              entity_id: "{{ master_presence_helper }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Master Presence DEACTIVATED (sensor OFF >{{ presence_deactivation_delay }}min)"
-              level: info
-          - stop: ""
-      - conditions:
-          - condition: trigger
-            id: room2_presence_on
-        sequence:
-          - condition: template
-            value_template: "{{ room2_presence_helper != '' }}"
-          - service: input_boolean.turn_on
-            target:
-              entity_id: "{{ room2_presence_helper }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room2 Presence ACTIVATED"
-              level: info
-          - stop: ""
-      - conditions:
-          - condition: trigger
-            id: room2_presence_off
-        sequence:
-          - condition: template
-            value_template: "{{ room2_presence_helper != '' }}"
-          - service: input_boolean.turn_off
-            target:
-              entity_id: "{{ room2_presence_helper }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room2 Presence DEACTIVATED"
-              level: info
-          - stop: ""
-      - conditions:
-          - condition: trigger
-            id: room3_presence_on
-        sequence:
-          - condition: template
-            value_template: "{{ room3_presence_helper != '' }}"
-          - service: input_boolean.turn_on
-            target:
-              entity_id: "{{ room3_presence_helper }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room3 Presence ACTIVATED"
-              level: info
-          - stop: ""
-      - conditions:
-          - condition: trigger
-            id: room3_presence_off
-        sequence:
-          - condition: template
-            value_template: "{{ room3_presence_helper != '' }}"
-          - service: input_boolean.turn_off
-            target:
-              entity_id: "{{ room3_presence_helper }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room3 Presence DEACTIVATED"
-              level: info
-          - stop: ""
-      - conditions:
-          - condition: trigger
-            id: room4_presence_on
-        sequence:
-          - condition: template
-            value_template: "{{ room4_presence_helper != '' }}"
-          - service: input_boolean.turn_on
-            target:
-              entity_id: "{{ room4_presence_helper }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room4 Presence ACTIVATED"
-              level: info
-          - stop: ""
-      - conditions:
-          - condition: trigger
-            id: room4_presence_off
-        sequence:
-          - condition: template
-            value_template: "{{ room4_presence_helper != '' }}"
-          - service: input_boolean.turn_off
-            target:
-              entity_id: "{{ room4_presence_helper }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room4 Presence DEACTIVATED"
-              level: info
-          - stop: ""
-      - conditions:
-          - condition: trigger
-            id: room5_presence_on
-        sequence:
-          - condition: template
-            value_template: "{{ room5_presence_helper != '' }}"
-          - service: input_boolean.turn_on
-            target:
-              entity_id: "{{ room5_presence_helper }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room5 Presence ACTIVATED"
-              level: info
-          - stop: ""
-      - conditions:
-          - condition: trigger
-            id: room5_presence_off
-        sequence:
-          - condition: template
-            value_template: "{{ room5_presence_helper != '' }}"
-          - service: input_boolean.turn_off
-            target:
-              entity_id: "{{ room5_presence_helper }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room5 Presence DEACTIVATED"
-              level: info
-          - stop: ""
+  # [ENTFERNT] Presence sensor/helper mappings - Blueprint liest Presence jetzt direkt aus Template-Sensoren
+  # [ENTFERNT] Helper-Management-Block - ersetzt durch Template-Sensoren mit nativen Delay-Funktionen
 
-  # Continue to scheduled logic if no presence trigger matched
+  # Continue to scheduled logic
   - variables:
       # ===== GROUP 1: INPUTS & HELPERS =====
       inputs:
@@ -1361,7 +1159,6 @@ action:
         eco_temp_fixed: !input eco_temp_fixed
         away_temp_input: !input away_temp_input
         away_temp_fixed: !input away_temp_fixed
-        away_mode_boolean: !input away_mode_boolean
         min_trv_temp: !input min_trv_temp
         window_heat_delay: !input window_heat_delay
         smart_drop_threshold: !input smart_drop_threshold
@@ -1374,10 +1171,6 @@ action:
         master_comfort_input: !input master_comfort_input
         master_comfort_fixed: !input master_comfort_fixed
         master_schedule: !input master_schedule
-        master_presence_sensors: !input master_presence_sensors
-        master_presence_helper: !input master_presence_helper
-        presence_activation_delay: !input presence_activation_delay
-        presence_deactivation_delay: !input presence_deactivation_delay
         enable_master_presence_priority: !input enable_master_presence_priority
         master_presence_priority_helper: !input master_presence_priority_helper
         enable_room_boost: !input enable_room_boost
@@ -1391,9 +1184,6 @@ action:
         room2_comfort_input: !input room2_comfort_input
         room2_comfort_fixed: !input room2_comfort_fixed
         room2_schedule: !input room2_schedule
-        room2_presence_sensors: !input room2_presence_sensors
-        room2_presence_helper: !input room2_presence_helper
-        room2_presence_delay: !input room2_presence_delay
         room2_window: !input room2_window
         room2_smart_window: !input room2_smart_window
         room2_temp_sensor: !input room2_temp_sensor
@@ -1402,9 +1192,6 @@ action:
         room3_comfort_input: !input room3_comfort_input
         room3_comfort_fixed: !input room3_comfort_fixed
         room3_schedule: !input room3_schedule
-        room3_presence_sensors: !input room3_presence_sensors
-        room3_presence_helper: !input room3_presence_helper
-        room3_presence_delay: !input room3_presence_delay
         room3_window: !input room3_window
         room3_smart_window: !input room3_smart_window
         room3_temp_sensor: !input room3_temp_sensor
@@ -1413,9 +1200,6 @@ action:
         room4_comfort_input: !input room4_comfort_input
         room4_comfort_fixed: !input room4_comfort_fixed
         room4_schedule: !input room4_schedule
-        room4_presence_sensors: !input room4_presence_sensors
-        room4_presence_helper: !input room4_presence_helper
-        room4_presence_delay: !input room4_presence_delay
         room4_window: !input room4_window
         room4_smart_window: !input room4_smart_window
         room4_temp_sensor: !input room4_temp_sensor
@@ -1424,9 +1208,6 @@ action:
         room5_comfort_input: !input room5_comfort_input
         room5_comfort_fixed: !input room5_comfort_fixed
         room5_schedule: !input room5_schedule
-        room5_presence_sensors: !input room5_presence_sensors
-        room5_presence_helper: !input room5_presence_helper
-        room5_presence_delay: !input room5_presence_delay
         room5_window: !input room5_window
         room5_smart_window: !input room5_smart_window
         room5_temp_sensor: !input room5_temp_sensor
@@ -1489,7 +1270,7 @@ action:
           {{ false }}
         {% endif %}
       master_presence_detected: >
-        {{ is_state(inputs.master_presence_helper, 'on') if inputs.master_presence_helper != '' else false }}
+        {{ is_state('binary_sensor.vaillant_master_presence', 'on') }}
       room2_schedule_active_for_demand: >
         {% if inputs.room2_enabled | bool(false) and inputs.room2_schedule | string != "" %}
           {{ is_state(inputs.room2_schedule, 'on') }}
@@ -1497,7 +1278,7 @@ action:
           {{ false }}
         {% endif %}
       room2_presence_for_demand: >
-        {{ is_state(inputs.room2_presence_helper, 'on') if inputs.room2_presence_helper != '' else false }}
+        {{ is_state('binary_sensor.vaillant_room2_presence', 'on') }}
       room3_schedule_active_for_demand: >
         {% if inputs.room3_enabled | bool(false) and inputs.room3_schedule | string != "" %}
           {{ is_state(inputs.room3_schedule, 'on') }}
@@ -1505,7 +1286,7 @@ action:
           {{ false }}
         {% endif %}
       room3_presence_for_demand: >
-        {{ is_state(inputs.room3_presence_helper, 'on') if inputs.room3_presence_helper != '' else false }}
+        {{ is_state('binary_sensor.vaillant_room3_presence', 'on') }}
       room4_schedule_active_for_demand: >
         {% if inputs.room4_enabled | bool(false) and inputs.room4_schedule | string != "" %}
           {{ is_state(inputs.room4_schedule, 'on') }}
@@ -1513,7 +1294,7 @@ action:
           {{ false }}
         {% endif %}
       room4_presence_for_demand: >
-        {{ is_state(inputs.room4_presence_helper, 'on') if inputs.room4_presence_helper != '' else false }}
+        {{ is_state('binary_sensor.vaillant_room4_presence', 'on') }}
       room5_schedule_active_for_demand: >
         {% if inputs.room5_enabled | bool(false) and inputs.room5_schedule | string != "" %}
           {{ is_state(inputs.room5_schedule, 'on') }}
@@ -1521,7 +1302,7 @@ action:
           {{ false }}
         {% endif %}
       room5_presence_for_demand: >
-        {{ is_state(inputs.room5_presence_helper, 'on') if inputs.room5_presence_helper != '' else false }}
+        {{ is_state('binary_sensor.vaillant_room5_presence', 'on') }}
       master_window_sensor_configured: >
         {{ inputs.master_smart_window != '' }}
       master_window_open: >
@@ -1640,13 +1421,7 @@ action:
           {{ eco_temp }}
         {% endif %}
       room_global_fallback_demand: >
-        {% set ns = namespace(active=false) %}
-        {% for ent in inputs.away_mode_boolean %}
-          {% if ent | string != '' and is_state(ent, 'on') %}
-            {% set ns.active = true %}
-          {% endif %}
-        {% endfor %}
-        {% if ns.active | bool(false) %}
+        {% if is_state('binary_sensor.vaillant_global_away', 'on') %}
           {{ away_temp }}
         {% else %}
           {{ eco_temp }}
@@ -1697,19 +1472,9 @@ action:
         ] | max }}
 
       # ===== GROUP 4: TARGET CALCULATION =====
-      away_mode_helper_set: "{{ inputs.away_mode_boolean | length > 0 }}"
       away_mode_entity_on: >
-        {% if away_mode_helper_set | bool(false) %}
-          {% set ns = namespace(active=false) %}
-          {% for ent in inputs.away_mode_boolean %}
-            {% if ent | string != '' and is_state(ent, 'on') %}
-              {% set ns.active = true %}
-            {% endif %}
-          {% endfor %}
-          {{ ns.active | bool(false) }}
-        {% else %}
-          {{ false }}
-        {% endif %}
+        {{ is_state('binary_sensor.vaillant_global_away', 'on') }}
+      # Away Mode liest Shared Template-Sensor (15min Aktivierungs-Delay, 2min Deaktivierungs-Delay)
       panic_mode_active: >
         {% if inputs.panic_mode_enabled | string != '' %}
           {{ is_state(inputs.panic_mode_enabled, 'on') }}
@@ -1816,43 +1581,7 @@ action:
                   {{ false }}
                 {% endif %}
               room2_presence: >
-                {% if inputs.room2_presence_sensors | length == 0 %}
-                  {{ false }}
-                {% else %}
-                  {% set sensors = expand(inputs.room2_presence_sensors) | selectattr('last_changed', 'defined') | list %}
-                  {% if sensors | length == 0 %}
-                    {{ false }}
-                  {% else %}
-                  {% set any_on = sensors | selectattr('state', 'eq', 'on') | list | length > 0 %}
-                  {% set ns = namespace(active=false) %}
-                  {% for s in sensors %}
-                    {% if s.state | string == 'on' %}
-                      {% set s_changed = s.last_changed | as_datetime %}
-                      {% if s_changed | bool(false) is not none and ((as_timestamp(now()) - as_timestamp(s_changed | bool(false), as_timestamp(now()))) >= (inputs.presence_activation_delay | float(0) * 60)) %}
-                        {% set ns.active = true %}
-                      {% endif %}
-                    {% endif %}
-                  {% endfor %}
-                  {% if ns.active | bool(false) %}
-                    {{ true }}
-                  {% elif not any_on | bool(false) %}
-                    {% set last_changes = sensors | map(attribute='last_changed') | list %}
-                    {% if last_changes | length | float(0) > 0 %}
-                      {% set last_change = last_changes | max %}
-                      {% set last_change_dt = last_change | as_datetime %}
-                      {% if last_change_dt | bool(false) is not none %}
-                        {{ (as_timestamp(now()) - as_timestamp(last_change_dt, as_timestamp(now()))) < (inputs.room2_presence_delay | float(0) * 60) }}
-                      {% else %}
-                        {{ false }}
-                      {% endif %}
-                    {% else %}
-                      {{ false }}
-                    {% endif %}
-                  {% else %}
-                    {{ false }}
-                  {% endif %}
-                  {% endif %}
-                {% endif %}
+                {{ is_state('binary_sensor.vaillant_room2_presence', 'on') }}
               room2_window_open: >
                 {{ (is_state(inputs.room2_window, 'on') if inputs.room2_window != '' else false) or (is_state(inputs.room2_smart_window, 'on') if inputs.room2_smart_window != '' else false) }}
               room2_comfort_temp: >
@@ -1928,43 +1657,7 @@ action:
                   {{ false }}
                 {% endif %}
               room3_presence: >
-                {% if inputs.room3_presence_sensors | length == 0 %}
-                  {{ false }}
-                {% else %}
-                  {% set sensors = expand(inputs.room3_presence_sensors) | selectattr('last_changed', 'defined') | list %}
-                  {% if sensors | length == 0 %}
-                    {{ false }}
-                  {% else %}
-                  {% set any_on = sensors | selectattr('state', 'eq', 'on') | list | length > 0 %}
-                  {% set ns = namespace(active=false) %}
-                  {% for s in sensors %}
-                    {% if s.state | string == 'on' %}
-                      {% set s_changed = s.last_changed | as_datetime %}
-                      {% if s_changed | bool(false) is not none and ((as_timestamp(now()) - as_timestamp(s_changed | bool(false), as_timestamp(now()))) >= (inputs.presence_activation_delay | float(0) * 60)) %}
-                        {% set ns.active = true %}
-                      {% endif %}
-                    {% endif %}
-                  {% endfor %}
-                  {% if ns.active | bool(false) %}
-                    {{ true }}
-                  {% elif not any_on | bool(false) %}
-                    {% set last_changes = sensors | map(attribute='last_changed') | list %}
-                    {% if last_changes | length | float(0) > 0 %}
-                      {% set last_change = last_changes | max %}
-                      {% set last_change_dt = last_change | as_datetime %}
-                      {% if last_change_dt | bool(false) is not none %}
-                        {{ (as_timestamp(now()) - as_timestamp(last_change_dt, as_timestamp(now()))) < (inputs.room3_presence_delay | float(0) * 60) }}
-                      {% else %}
-                        {{ false }}
-                      {% endif %}
-                    {% else %}
-                      {{ false }}
-                    {% endif %}
-                  {% else %}
-                    {{ false }}
-                  {% endif %}
-                  {% endif %}
-                {% endif %}
+                {{ is_state('binary_sensor.vaillant_room3_presence', 'on') }}
               room3_window_open: >
                 {{ (is_state(inputs.room3_window, 'on') if inputs.room3_window != '' else false) or (is_state(inputs.room3_smart_window, 'on') if inputs.room3_smart_window != '' else false) }}
               room3_comfort_temp: >
@@ -2046,43 +1739,7 @@ action:
                   {{ false }}
                 {% endif %}
               room4_presence: >
-                {% if inputs.room4_presence_sensors | length == 0 %}
-                  {{ false }}
-                {% else %}
-                  {% set sensors = expand(inputs.room4_presence_sensors) | selectattr('last_changed', 'defined') | list %}
-                  {% if sensors | length == 0 %}
-                    {{ false }}
-                  {% else %}
-                  {% set any_on = sensors | selectattr('state', 'eq', 'on') | list | length > 0 %}
-                  {% set ns = namespace(active=false) %}
-                  {% for s in sensors %}
-                    {% if s.state | string == 'on' %}
-                      {% set s_changed = s.last_changed | as_datetime %}
-                      {% if s_changed | bool(false) is not none and ((as_timestamp(now()) - as_timestamp(s_changed | bool(false), as_timestamp(now()))) >= (inputs.presence_activation_delay | float(0) * 60)) %}
-                        {% set ns.active = true %}
-                      {% endif %}
-                    {% endif %}
-                  {% endfor %}
-                  {% if ns.active | bool(false) %}
-                    {{ true }}
-                  {% elif not any_on | bool(false) %}
-                    {% set last_changes = sensors | map(attribute='last_changed') | list %}
-                    {% if last_changes | length | float(0) > 0 %}
-                      {% set last_change = last_changes | max %}
-                      {% set last_change_dt = last_change | as_datetime %}
-                      {% if last_change_dt | bool(false) is not none %}
-                        {{ (as_timestamp(now()) - as_timestamp(last_change_dt, as_timestamp(now()))) < (inputs.room4_presence_delay | float(0) * 60) }}
-                      {% else %}
-                        {{ false }}
-                      {% endif %}
-                    {% else %}
-                      {{ false }}
-                    {% endif %}
-                  {% else %}
-                    {{ false }}
-                  {% endif %}
-                  {% endif %}
-                {% endif %}
+                {{ is_state('binary_sensor.vaillant_room4_presence', 'on') }}
               room4_window_open: >
                 {{ (is_state(inputs.room4_window, 'on') if inputs.room4_window != '' else false) or (is_state(inputs.room4_smart_window, 'on') if inputs.room4_smart_window != '' else false) }}
               room4_comfort_temp: >
@@ -2164,43 +1821,7 @@ action:
                   {{ false }}
                 {% endif %}
               room5_presence: >
-                {% if inputs.room5_presence_sensors | length == 0 %}
-                  {{ false }}
-                {% else %}
-                  {% set sensors = expand(inputs.room5_presence_sensors) | selectattr('last_changed', 'defined') | list %}
-                  {% if sensors | length == 0 %}
-                    {{ false }}
-                  {% else %}
-                  {% set any_on = sensors | selectattr('state', 'eq', 'on') | list | length > 0 %}
-                  {% set ns = namespace(active=false) %}
-                  {% for s in sensors %}
-                    {% if s.state | string == 'on' %}
-                      {% set s_changed = s.last_changed | as_datetime %}
-                      {% if s_changed | bool(false) is not none and ((as_timestamp(now()) - as_timestamp(s_changed | bool(false), as_timestamp(now()))) >= (inputs.presence_activation_delay | float(0) * 60)) %}
-                        {% set ns.active = true %}
-                      {% endif %}
-                    {% endif %}
-                  {% endfor %}
-                  {% if ns.active | bool(false) %}
-                    {{ true }}
-                  {% elif not any_on | bool(false) %}
-                    {% set last_changes = sensors | map(attribute='last_changed') | list %}
-                    {% if last_changes | length | float(0) > 0 %}
-                      {% set last_change = last_changes | max %}
-                      {% set last_change_dt = last_change | as_datetime %}
-                      {% if last_change_dt | bool(false) is not none %}
-                        {{ (as_timestamp(now()) - as_timestamp(last_change_dt, as_timestamp(now()))) < (inputs.room5_presence_delay | float(0) * 60) }}
-                      {% else %}
-                        {{ false }}
-                      {% endif %}
-                    {% else %}
-                      {{ false }}
-                    {% endif %}
-                  {% else %}
-                    {{ false }}
-                  {% endif %}
-                  {% endif %}
-                {% endif %}
+                {{ is_state('binary_sensor.vaillant_room5_presence', 'on') }}
               room5_window_open: >
                 {{ (is_state(inputs.room5_window, 'on') if inputs.room5_window != '' else false) or (is_state(inputs.room5_smart_window, 'on') if inputs.room5_smart_window != '' else false) }}
               room5_comfort_temp: >
@@ -2551,6 +2172,10 @@ action:
                 {% else %}
                   {{ false }}
                 {% endif %}
+              debug_room3_logic: >
+                Demand: {{ room3_demand }},
+                Sensor: {{ states(inputs.room3_temp_sensor) }},
+                Threshold: {{ inputs.room_boost_threshold }}
               room3_boost_deactivate: >
                 {% if room_boost_enabled_effective | bool(false) and (inputs.room3_enabled | bool(false)) and inputs.room3_temp_sensor | string != '' %}
                   {% set room_raw = states(inputs.room3_temp_sensor) %}
@@ -2701,6 +2326,18 @@ action:
                 {{ (master_needs_global_drop | bool(false)) and (master_change_cooldown_ok_step55 | bool(false)) }}
               master_write_allowed: >
                 {{ (not (room_window_trigger_event | bool(false))) and (not (master_forced_min_active | bool(false))) and ((master_raise_allowed | bool(false)) or (master_drop_allowed | bool(false))) }}
+          - service: persistent_notification.create
+            data:
+              title: "🔍 DEBUG: Deep Dive"
+              message: |
+                Room Boost Enabled: {{ room_boost_enabled_effective }}
+                Room 3 Needs Boost: {{ room3_needs_boost }}
+
+                👉 INTERNAL LOGIC:
+                {{ debug_room3_logic }}
+
+                Master Target Base: {{ master_required_target }}
+                Master Target Boosted: {{ master_required_target_with_boost }}
           - choose:
               # PATH A (CRITICAL): forced-min writes bypass cooldown
               - conditions:

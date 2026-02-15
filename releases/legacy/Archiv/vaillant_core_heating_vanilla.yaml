@@ -3,7 +3,7 @@ blueprint:
   description: |
     🔥 **Modul 1: Die Kern-Heizungssteuerung**
 
-    Dies ist das Herzstueck der Vaillant V1.0 Suite. Es steuert exklusiv die Therme (Master) und die Heizkoerper (TRVs).
+    Dies ist das Herzstueck der Vaillant V2.0 Suite. Es steuert exklusiv die Therme (Master) und die Heizkoerper (TRVs).
 
     **Funktionen:**
     - 🌡️ Intelligente Vorlauf-Steuerung (Master folgt dem Bedarf).

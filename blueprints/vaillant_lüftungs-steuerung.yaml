@@ -14,11 +14,19 @@ blueprint:
     **Info:**
     Dieses Modul sendet nur Nachrichten. Das "Core Heating" Modul erkennt die offenen Fenster separat und stoppt die Heizung automatisch.
 
-    **Autor:** bananapower | **Version:** v1.0 (Microservices Edition)
+    **Autor:** bananapower | **Version:** v2.0 (Microservices Edition)
 
   domain: automation
   source_url: https://raw.githubusercontent.com/howtobanana/vaillant-suite-blueprints/main/blueprints/vaillant_l%C3%BCftungs-steuerung.yaml
   author: "bananapower"
+
+  # ═══════════════════════════════════════════════════════════
+  # v2.0: Nutzt Vaillant Suite Template Sensors
+  # - binary_sensor.vaillant_global_away (Away-Trigger mit Delay)
+  # - binary_sensor.vaillant_any_presence (Reminder nur wenn zu Hause)
+  # - binary_sensor.vaillant_critical_window_state (Koordinierte Alerts)
+  # Erfordert: vaillant-templates.yaml deployed + HA restart
+  # ═══════════════════════════════════════════════════════════
 
   input:
     section_global:
@@ -299,7 +307,7 @@ trigger:
 
   # Safety: Away Mode activated
   - platform: state
-    entity_id: !input away_mode_boolean
+    entity_id: binary_sensor.vaillant_global_away
     to: "on"
     id: safety_away_mode
 
@@ -309,7 +317,6 @@ action:
   - variables:
       inputs:
         weather_entity: !input weather_entity
-        away_mode_boolean: !input away_mode_boolean
         enable_daily_reminder: !input enable_daily_reminder
         reminder_time: !input reminder_time
         co2_sensor: !input co2_sensor
@@ -351,11 +358,8 @@ action:
         - room5_window_change
 
       away_mode_active: >
-        {% if inputs.away_mode_boolean != '' %}
-          {{ is_state(inputs.away_mode_boolean, 'on') }}
-        {% else %}
-          false
-        {% endif %}
+        {{ is_state('binary_sensor.vaillant_global_away', 'on') }}
+      # Away Mode now reads shared template sensor (15min activation delay, 2min deactivation delay)
 
       is_night: "{{ is_state('sun.sun', 'below_horizon') }}"
 
@@ -503,6 +507,7 @@ action:
   - choose:
       - conditions:
           - "{{ reminder_triggered }}"
+          - "{{ is_state('binary_sensor.vaillant_any_presence', 'on') or states('binary_sensor.vaillant_any_presence') in ['unknown', 'unavailable'] }}"  # NEW: Presence-aware mit Fallback
         sequence:
           - service: weather.get_forecasts
             target:
@@ -549,6 +554,9 @@ action:
                         Stoßlüften empfohlen.
                         Grund: {{ reminder_reason if (reminder_reason | trim) != '' else 'Zeit-/Schwellwert-Trigger' }}.
                         Aktuelle Fenster: {{ open_windows_text }}.
+                        {% if is_state('binary_sensor.vaillant_any_presence', 'on') %}
+                        (Jemand zu Hause erkannt)
+                        {% endif %}
                     continue_on_error: true
 
   # ===== FLOW 2: WINDOW OPENED -> TIMER -> ESCALATION =====
@@ -622,7 +630,30 @@ action:
                         - delay:
                             minutes: 1
 
-  # ===== FLOW 3: SAFETY (RAIN / AWAY MODE) =====
+  # ===== FLOW 3A: CRITICAL WINDOW STATE (SHARED SENSOR) =====
+  - choose:
+      - conditions:
+          - "{{ is_state('binary_sensor.vaillant_critical_window_state', 'on') }}"
+          - "{{ critical_service != '' }}"
+        sequence:
+          - service: "{{ critical_service }}"
+            data:
+              title: "🚨 CRITICAL: Window + Away/Cold!"
+              message: >
+                {{ state_attr('binary_sensor.vaillant_critical_window_state', 'reason') }}
+                Offene Fenster: {{ open_windows_text }}.
+              data:
+                push:
+                  interruption-level: critical
+                  sound:
+                    name: alarm.caf
+                    critical: 1
+                    volume: 1.0
+                ttl: 0
+                priority: high
+            continue_on_error: true
+
+  # ===== FLOW 3B: SAFETY (RAIN / AWAY MODE) =====
   - choose:
       - conditions:
           - "{{ trigger.id in ['safety_rain', 'safety_away_mode'] }}"
@@ -631,6 +662,7 @@ action:
               safety_due_to_rain: "{{ trigger.id == 'safety_rain' }}"
               safety_due_to_away_mode: "{{ trigger.id == 'safety_away_mode' and away_mode_active }}"
               safety_should_alert: "{{ any_window_open and (safety_due_to_rain or safety_due_to_away_mode) }}"
+              presence_context: "{{ is_state('binary_sensor.vaillant_any_presence', 'on') }}"
               safety_reason: >
                 {% if safety_due_to_rain %}
                   🌧️ Regen erkannt
@@ -638,6 +670,9 @@ action:
                   🏠 Away Mode aktiviert
                 {% else %}
                   ⚠️ Sicherheits-Event
+                {% endif %}
+                {% if presence_context %}
+                (Achtung: Presence erkannt trotz Away Mode - Sensor prüfen!)
                 {% endif %}
 
           - choose:

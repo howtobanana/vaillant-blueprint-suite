@@ -12,11 +12,27 @@ blueprint:
     - ⏱️ Kurzabwesenheits-Filter (Timeout).
     - 🎚️ Steuert den zentralen "Away-Mode Helper" für Modul 1.
 
-    **Autor:** bananapower | **Version:** v1.0 (Person-Based Edition)
+    **Autor:** bananapower | **Version:** v2.0 (Person-Based Edition)
 
   domain: automation
   source_url: https://raw.githubusercontent.com/howtobanana/vaillant-suite-blueprints/main/blueprints/vaillant_geofencing.yaml
   author: "bananapower"
+
+  # ═══════════════════════════════════════════════════════════
+  # v2.0: Integriert mit Vaillant Suite Template Sensors
+  #
+  # WICHTIG: Dieser Blueprint steuert input_boolean.global_away,
+  # welcher dann vom Template Sensor binary_sensor.vaillant_global_away
+  # mit 15min delay_on und 2min delay_off gelesen wird.
+  #
+  # Delay Architektur:
+  # 1. Geofencing: short_absence_timeout (empf. 5min)
+  # 2. Template Sensor: delay_on 15min
+  # 3. TOTAL: ~20min bis Away Mode vollständig aktiv
+  #
+  # Blueprints (Core, Ventilation, Diagnose) lesen den Template Sensor,
+  # NICHT direkt den input_boolean!
+  # ═══════════════════════════════════════════════════════════
 
   input:
     section_geo_fencing:
@@ -66,7 +82,12 @@ blueprint:
           name: "⏱️ Kurzabwesenheit Timeout (min)"
           description: |
             Innerhalb des Radius bleibt Away aus, bis seit Verlassen von Home diese Zeit verstrichen ist.
-          default: 20
+
+            ⚠️ HINWEIS: Der Template Sensor (binary_sensor.vaillant_global_away) hat zusätzlich
+            einen 15min delay_on für Stabilität.
+
+            EMPFOHLEN: 5min (Total mit Template: ~20min bis Full Away Mode)
+          default: 5
           selector:
             number:
               min: 0
@@ -76,10 +97,12 @@ blueprint:
         away_mode_boolean:
           name: "Zu steuernder Away-Helper"
           description: >
-            Dieser input_boolean wird AN/AUS geschaltet (Pflichtfeld für Modul-Verbund).
-            So erstellen Sie ihn: Einstellungen -> Geräte & Dienste -> Helfer -> Helfer erstellen -> Umschalter (input_boolean).
-            Beispiel-Entity: input_boolean.away_mode.
-            Wichtig: Muss derselbe Helper sein, der in "Modul 1 Core Heating" als Eingang gewählt ist.
+            Dieser input_boolean wird AN/AUS geschaltet und vom Template Sensor
+            binary_sensor.vaillant_global_away gelesen (mit Delays).
+            Erstellen: Einstellungen -> Geräte & Dienste -> Helfer -> Umschalter (input_boolean).
+            Empfohlener Name: input_boolean.global_away
+            ⚠️ v2.0: Blueprints lesen NICHT direkt diesen Helper, sondern den Template Sensor!
+            Der Helper ist nur noch die "Datenquelle" für den Template Sensor.
           default: []
           selector:
             entity:
@@ -192,7 +215,7 @@ action:
         {% if (geofencing_enabled | bool(false)) and (away_mode_helper_set | bool(false)) and (proximity_valid | bool(false)) %}
           {% set dist = distance_km | float(0) %}
           {% set radius = inputs.preheat_radius | float(5) %}
-          {% set timeout_min = inputs.short_absence_timeout | float(20) %}
+          {% set timeout_min = inputs.short_absence_timeout | float(5) %}
           {% set far_away = dist > radius %}
           {% set short_absence_rule = (dist < radius) and (not (anyone_home | bool(false))) and ((minutes_since_left | float(0)) > timeout_min) %}
           {{ far_away or short_absence_rule }}

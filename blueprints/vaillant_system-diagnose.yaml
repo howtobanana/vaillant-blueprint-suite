@@ -15,11 +15,21 @@ blueprint:
     **Kompatibilität:**
     Kann parallel zu "Core Heating" oder alleine genutzt werden.
 
-    **Autor:** bananapower | **Version:** v1.0 (Microservices Edition)
+    **Autor:** bananapower | **Version:** v2.0 (Microservices Edition)
 
   domain: automation
   source_url: https://raw.githubusercontent.com/howtobanana/vaillant-suite-blueprints/main/blueprints/vaillant_system-diagnose.yaml
   author: "bananapower"
+
+  # ═══════════════════════════════════════════════════════════
+  # v2.0: Nutzt Vaillant Suite Template Sensors
+  # - binary_sensor.vaillant_master_presence (Priority Alerts)
+  # - binary_sensor.vaillant_room3_presence (Priority Alerts)
+  # - binary_sensor.vaillant_any_presence (Offline-Kontext)
+  # - binary_sensor.vaillant_global_away (Druck/Effizienz-Kontext)
+  # Alerts für aktiv genutzte Räume werden priorisiert
+  # Erfordert: vaillant-templates.yaml deployed + HA restart
+  # ═══════════════════════════════════════════════════════════
 
   input:
 
@@ -710,6 +720,9 @@ action:
                     title: "⚠️ MyVaillant länger offline"
                     message: >
                       Master seit {{ master_offline_hours | round(1) }}h offline.
+                      {% if is_state('binary_sensor.vaillant_any_presence', 'on') %}
+                      WICHTIG: Räume werden genutzt - manuelle Steuerung empfohlen!
+                      {% endif %}
                       Bitte Master-Thermostat manuell auf AUTO setzen, bis die Integration wieder online ist.
                   continue_on_error: true
 
@@ -804,14 +817,36 @@ action:
                   - "{{ normal_notify_targets_list | length > 0 }}"
                   - "{{ trv_offline_recent | length > 0 }}"
                 sequence:
+                  - variables:
+                      priority_rooms: >
+                        {% set ns = namespace(items=[]) %}
+                        {% set offline_text = trv_offline_recent | join(', ') %}
+                        {% set office_match = ((room3_label | string) in offline_text) or ('Office' in offline_text) %}
+                        {% set master_match = ((master_label | string) in offline_text) or ('Wohnzimmer' in offline_text) %}
+                        {% if office_match and is_state('binary_sensor.vaillant_room3_presence', 'on') %}
+                          {% set ns.items = ns.items + [room3_label ~ ' (AKTIV GENUTZT)'] %}
+                        {% endif %}
+                        {% if master_match and is_state('binary_sensor.vaillant_master_presence', 'on') %}
+                          {% set ns.items = ns.items + [master_label ~ ' (AKTIV GENUTZT)'] %}
+                        {% endif %}
+                        {{ ns.items }}
+                      is_priority_alert: "{{ priority_rooms | length > 0 }}"
                   - repeat:
                       for_each: "{{ normal_notify_targets_list.split(',') if (normal_notify_targets_list | trim) != '' else [] }}"
                       sequence:
                         - service: "{{ item }}"
                           data:
-                            title: "⚠️ TRV/Sensor offline"
+                            title: >
+                              {% if is_priority_alert %}
+                              🚨 PRIORITY: TRV offline in genutztem Raum!
+                              {% else %}
+                              ⚠️ TRV/Sensor offline
+                              {% endif %}
                             message: >
                               Keine Daten von: {{ trv_offline_recent | join(', ') }}.
+                              {% if priority_rooms | length > 0 %}
+                              ACHTUNG: {{ priority_rooms | join(', ') }} wird aktuell genutzt!
+                              {% endif %}
                               Bitte Geräte/Funkverbindung prüfen.
                           continue_on_error: true
           - choose:
@@ -820,6 +855,19 @@ action:
                   - "{{ normal_notify_targets_list | length > 0 }}"
                   - "{{ trv_battery_low_recent | length > 0 }}"
                 sequence:
+                  - variables:
+                      occupied_rooms_low_battery: >
+                        {% set ns = namespace(items=[]) %}
+                        {% for device in trv_battery_low_recent %}
+                          {% set office_match = ((room3_label | string) in (device | string)) or ('Office' in (device | string)) %}
+                          {% set master_match = ((master_label | string) in (device | string)) or ('Wohnzimmer' in (device | string)) %}
+                          {% if office_match and is_state('binary_sensor.vaillant_room3_presence', 'on') %}
+                            {% set ns.items = ns.items + [device ~ ' (aktiv genutzt)'] %}
+                          {% elif master_match and is_state('binary_sensor.vaillant_master_presence', 'on') %}
+                            {% set ns.items = ns.items + [device ~ ' (aktiv genutzt)'] %}
+                          {% endif %}
+                        {% endfor %}
+                        {{ ns.items }}
                   - repeat:
                       for_each: "{{ normal_notify_targets_list.split(',') if (normal_notify_targets_list | trim) != '' else [] }}"
                       sequence:
@@ -829,9 +877,19 @@ action:
                             message: >
                               Niedrige Batterie erkannt (<= {{ inputs.trv_battery_threshold | int }}%):
                               {{ trv_battery_low_recent | join(', ') }}.
+                              {% if occupied_rooms_low_battery | length > 0 %}
+                              PRIORITÄT: {{ occupied_rooms_low_battery | join(', ') }}.
+                              {% endif %}
                               Bitte Batterien tauschen.
                           continue_on_error: true
 
+
+  # ═══════════════════════════════════════════════════════════
+  # FUTURE ENHANCEMENT: Use shared aggregated sensors
+  # - binary_sensor.vaillant_any_trv_offline
+  # - binary_sensor.vaillant_any_low_battery
+  # Statt lokaler Berechnung direkt aus Shared Infrastructure lesen
+  # ═══════════════════════════════════════════════════════════
 
   # ===== WATER PRESSURE MONITORING =====
   - choose:
@@ -868,7 +926,11 @@ action:
                                 - service: "{{ item }}"
                                   data:
                                     title: "🚨 WASSERDRUCK KRITISCH"
-                                    message: "Nur {{ current_pressure | round(2) }} bar! Therme in Gefahr - sofort nachfüllen!"
+                                    message: >
+                                      Nur {{ current_pressure | round(2) }} bar! Therme in Gefahr - sofort nachfüllen!
+                                      {% if is_state('binary_sensor.vaillant_global_away', 'on') %}
+                                      (Away Mode aktiv - möglicherweise kritischer!)
+                                      {% endif %}
                                     data:
                                       push:
                                         sound:
@@ -883,7 +945,11 @@ action:
                             - service: "{{ item }}"
                               data:
                                 title: "⚠️ Wasserdruck kritisch (leise)"
-                                message: "Nur {{ current_pressure | round(2) }} bar! Therme in Gefahr - sofort nachfüllen!"
+                                message: >
+                                  Nur {{ current_pressure | round(2) }} bar! Therme in Gefahr - sofort nachfüllen!
+                                  {% if is_state('binary_sensor.vaillant_global_away', 'on') %}
+                                  (Away Mode aktiv - möglicherweise kritischer!)
+                                  {% endif %}
                               continue_on_error: true
               - conditions:
                   - "{{ trigger.id == 'low_pressure' }}"
@@ -926,5 +992,9 @@ action:
                         - service: "{{ item }}"
                           data:
                             title: "📉 Schlechte Heiz-Effizienz"
-                            message: "Nur {{ current_efficiency | round(2) }} COP/JAZ - Wartung prüfen!"
+                            message: >
+                              Nur {{ current_efficiency | round(2) }} COP/JAZ - Wartung prüfen!
+                              {% if is_state('binary_sensor.vaillant_global_away', 'on') %}
+                              (Kann bei Away Mode normal sein - niedrige Solltemperatur)
+                              {% endif %}
                           continue_on_error: true

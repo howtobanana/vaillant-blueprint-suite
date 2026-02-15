@@ -1,0 +1,572 @@
+# ═══════════════════════════════════════════════════════════
+# Storage for Bubble Card Modules
+# ═══════════════════════════════════════════════════════════
+
+- trigger:
+    - platform: event
+      event_type: bubble_card_update_modules
+  sensor:
+    - name: "Bubble Card Modules"
+      state: "saved"
+      icon: "mdi:puzzle"
+      attributes:
+        modules: "{{ trigger.event.data.modules }}"
+        last_updated: "{{ trigger.event.data.last_updated }}"
+
+# ═══════════════════════════════════════════════════════════
+# VAILLANT SUITE v2.0 - SHARED INFRASTRUCTURE LAYER
+# ═══════════════════════════════════════════════════════════
+# Diese Template-Sensoren werden von allen Vaillant-Blueprints
+# genutzt und bieten eine zentrale "Single Source of Truth".
+#
+# WICHTIG:
+# - Nach dem Hinzufügen: Home Assistant Konfiguration prüfen
+# - Entitäten bei Bedarf anpassen (z. B. weather.home)
+# - Deaktivierte Räume gezielt aktivieren
+#
+# Verwendet von:
+# - Core Heating (Presence, Away, Summer Mode, Fenster)
+# - Ventilation (Presence, Rain, Air Quality)
+# - System Diagnose (Pressure, TRV/Battery Health, Error-State)
+# ═══════════════════════════════════════════════════════════
+
+- binary_sensor:
+    # ─────────────────────────────────────────────────────
+    # 1. GEOFENCING & OCCUPANCY
+    # ─────────────────────────────────────────────────────
+    - name: Vaillant Global Away
+      unique_id: vaillant_suite_global_away
+      device_class: presence
+      icon: mdi:home-export-outline
+      state: >
+        {{ is_state('input_boolean.global_away', 'on') }}
+      delay_on:
+        minutes: 15
+      delay_off:
+        minutes: 2
+      attributes:
+        source_entity: input_boolean.global_away
+
+    - name: Vaillant Master Presence
+      unique_id: vaillant_suite_master_presence
+      device_class: occupancy
+      icon: mdi:home-account
+      state: >
+        {{ is_state('binary_sensor.esp_wohnzimmer_presence', 'on') }}
+      delay_on:
+        minutes: 2
+      delay_off:
+        minutes: 30
+      attributes:
+        source_entity: binary_sensor.esp_wohnzimmer_presence
+
+    - name: Vaillant Room3 Presence
+      unique_id: vaillant_suite_room3_presence
+      device_class: occupancy
+      icon: mdi:desk
+      state: >
+        {{ is_state('binary_sensor.presence_office_presence', 'on') }}
+      delay_on:
+        minutes: 2
+      delay_off:
+        minutes: 30
+      attributes:
+        source_entity: binary_sensor.presence_office_presence
+
+    - name: Vaillant Room2 Presence
+      unique_id: vaillant_suite_room2_presence
+      device_class: occupancy
+      icon: mdi:bed
+      # Aktivieren sobald Raum 2 konfiguriert ist:
+      # Ersetze "false" durch den echten Sensor-Check.
+      state: >
+        {{ false }}
+      delay_on:
+        minutes: 2
+      delay_off:
+        minutes: 30
+      attributes:
+        note: "Enable when Room 2 configured - replace hardcoded false"
+
+    - name: Vaillant Room4 Presence
+      unique_id: vaillant_suite_room4_presence
+      device_class: occupancy
+      icon: mdi:shower
+      # Aktivieren sobald Raum 4 konfiguriert ist.
+      state: >
+        {{ false }}
+      delay_on:
+        minutes: 2
+      delay_off:
+        minutes: 20
+      attributes:
+        note: "Enable when Room 4 configured - replace hardcoded false"
+
+    - name: Vaillant Room5 Presence
+      unique_id: vaillant_suite_room5_presence
+      device_class: occupancy
+      icon: mdi:chef-hat
+      # Aktivieren sobald Raum 5 konfiguriert ist.
+      state: >
+        {{ false }}
+      delay_on:
+        minutes: 2
+      delay_off:
+        minutes: 45
+      attributes:
+        note: "Enable when Room 5 configured - replace hardcoded false"
+
+    - name: Vaillant Any Presence
+      unique_id: vaillant_suite_any_presence
+      device_class: occupancy
+      icon: mdi:account-multiple
+      state: >
+        {{
+          expand([
+            'binary_sensor.vaillant_master_presence',
+            'binary_sensor.vaillant_room2_presence',
+            'binary_sensor.vaillant_room3_presence',
+            'binary_sensor.vaillant_room4_presence',
+            'binary_sensor.vaillant_room5_presence'
+          ])
+          | selectattr('state', 'eq', 'on')
+          | list
+          | count > 0
+        }}
+      attributes:
+        active_rooms: >
+          {{
+            expand([
+              'binary_sensor.vaillant_master_presence',
+              'binary_sensor.vaillant_room2_presence',
+              'binary_sensor.vaillant_room3_presence',
+              'binary_sensor.vaillant_room4_presence',
+              'binary_sensor.vaillant_room5_presence'
+            ])
+            | selectattr('state', 'eq', 'on')
+            | map(attribute='name')
+            | list
+          }}
+
+    # ─────────────────────────────────────────────────────
+    # 2. WINDOW STATES
+    # ─────────────────────────────────────────────────────
+    - name: Vaillant Any Window Open
+      unique_id: vaillant_suite_any_window_open
+      device_class: window
+      icon: mdi:window-open-variant
+      # Weitere Fensterkontakte ergänzen, sobald Räume aktiv sind.
+      state: >
+        {{
+          expand([
+            'binary_sensor.fenster_office_contact'
+          ])
+          | selectattr('state', 'eq', 'on')
+          | list
+          | count > 0
+        }}
+      attributes:
+        open_windows: >
+          {{
+            expand([
+              'binary_sensor.fenster_office_contact'
+            ])
+            | selectattr('state', 'eq', 'on')
+            | map(attribute='name')
+            | list
+          }}
+        note: "Add more window sensors as rooms are enabled"
+
+    - name: Vaillant Critical Window State
+      unique_id: vaillant_suite_critical_window_state
+      device_class: problem
+      icon: mdi:alert-octagon
+      state: >
+        {% set window_open = is_state('binary_sensor.vaillant_any_window_open', 'on') %}
+        {% set away = is_state('binary_sensor.vaillant_global_away', 'on') %}
+        {% set outdoor = states('sensor.temp_aussen_temperature') %}
+        {% set freezing = (outdoor not in ['unknown', 'unavailable', 'none', '']) and ((outdoor | float(99)) < 5) %}
+        {{ window_open and (away or freezing) }}
+      attributes:
+        reason: >
+          {% set window_open = is_state('binary_sensor.vaillant_any_window_open', 'on') %}
+          {% set away = is_state('binary_sensor.vaillant_global_away', 'on') %}
+          {% set outdoor = states('sensor.temp_aussen_temperature') %}
+          {% set freezing = (outdoor not in ['unknown', 'unavailable', 'none', '']) and ((outdoor | float(99)) < 5) %}
+          {% if window_open and away %}
+            Away Mode + Window Open
+          {% elif window_open and freezing %}
+            Freezing Outside + Window Open
+          {% else %}
+            None
+          {% endif %}
+
+    # ─────────────────────────────────────────────────────
+    # 3. WEATHER & OUTDOOR
+    # ─────────────────────────────────────────────────────
+    - name: Vaillant Outdoor Freezing
+      unique_id: vaillant_suite_outdoor_freezing
+      device_class: cold
+      icon: mdi:snowflake
+      state: >
+        {% set raw = states('sensor.temp_aussen_temperature') %}
+        {{ raw not in ['unknown', 'unavailable', 'none', ''] and (raw | float(99)) < 0 }}
+      delay_on:
+        minutes: 15
+      attributes:
+        outdoor_temp_c: >
+          {% set raw = states('sensor.temp_aussen_temperature') %}
+          {{ raw if raw not in ['unknown', 'unavailable', 'none', ''] else 'n/a' }}
+
+    - name: Vaillant Summer Mode
+      unique_id: vaillant_suite_summer_mode
+      device_class: heat
+      icon: mdi:weather-sunny
+      state: >
+        {% set raw = states('sensor.temp_aussen_temperature') %}
+        {{ raw not in ['unknown', 'unavailable', 'none', ''] and (raw | float(-99)) > 18 }}
+      delay_on:
+        minutes: 60
+      delay_off:
+        minutes: 60
+      attributes:
+        threshold_c: "18"
+        source_entity: sensor.temp_aussen_temperature
+
+    - name: Vaillant Rain Now
+      unique_id: vaillant_suite_rain_now
+      device_class: moisture
+      icon: mdi:weather-rainy
+      # Bei Bedarf weather.home auf deine Wetter-Entity umstellen.
+      state: >
+        {{ states('weather.home') in ['rainy', 'pouring', 'lightning', 'lightning-rainy', 'hail', 'snowy-rainy'] }}
+      attributes:
+        source_entity: weather.home
+        note: "Adjust weather.home to your weather entity"
+
+    # ─────────────────────────────────────────────────────
+    # 4. AIR QUALITY
+    # ─────────────────────────────────────────────────────
+    - name: Vaillant Air Quality Bad
+      unique_id: vaillant_suite_air_quality_bad
+      device_class: problem
+      icon: mdi:air-filter
+      # CO2/Feuchte-Sensoren bei Bedarf auf echte Entities mappen.
+      state: >
+        {% set co2_raw = states('sensor.co2_office') %}
+        {% set hum_raw = states('sensor.humidity_office') %}
+        {% set co2 = co2_raw | float(0) %}
+        {% set hum = hum_raw | float(0) %}
+        {{ (co2 > 1200) or (hum > 60) }}
+      attributes:
+        co2_ppm: >
+          {% set raw = states('sensor.co2_office') %}
+          {{ raw if raw not in ['unknown', 'unavailable', 'none', ''] else 'n/a' }}
+        humidity_pct: >
+          {% set raw = states('sensor.humidity_office') %}
+          {{ raw if raw not in ['unknown', 'unavailable', 'none', ''] else 'n/a' }}
+        reason: >
+          {% set co2 = states('sensor.co2_office') | float(0) %}
+          {% set hum = states('sensor.humidity_office') | float(0) %}
+          {% if co2 > 1200 and hum > 60 %}
+            Both
+          {% elif co2 > 1200 %}
+            CO2 high
+          {% elif hum > 60 %}
+            Humidity high
+          {% else %}
+            OK
+          {% endif %}
+        note: "Configure CO2/humidity sensors when available"
+
+    - name: Vaillant Mold Risk
+      unique_id: vaillant_suite_mold_risk
+      device_class: problem
+      icon: mdi:water-alert
+      # Benötigt Feuchte + Temperatur (Office).
+      state: >
+        {% set hum_raw = states('sensor.humidity_office') %}
+        {% set temp_raw = states('sensor.temp_office_temperature') %}
+        {% set temp_fallback = state_attr('climate.thermostat_office', 'current_temperature') %}
+        {% set hum = hum_raw | float(0) %}
+        {% set temp = temp_raw | float(temp_fallback | float(99)) %}
+        {{ (hum > 65) and (temp < 16) }}
+      attributes:
+        humidity_pct: >
+          {% set raw = states('sensor.humidity_office') %}
+          {{ raw if raw not in ['unknown', 'unavailable', 'none', ''] else 'n/a' }}
+        room_temp_c: >
+          {% set temp_raw = states('sensor.temp_office_temperature') %}
+          {% set temp_fallback = state_attr('climate.thermostat_office', 'current_temperature') %}
+          {% if temp_raw not in ['unknown', 'unavailable', 'none', ''] %}
+            {{ temp_raw }}
+          {% elif temp_fallback is not none %}
+            {{ temp_fallback }}
+          {% else %}
+            n/a
+          {% endif %}
+        note: "Requires humidity sensors configured"
+
+    # ─────────────────────────────────────────────────────
+    # 5. SYSTEM HEALTH
+    # ─────────────────────────────────────────────────────
+    - name: Vaillant System Error
+      unique_id: vaillant_suite_system_error
+      device_class: problem
+      icon: mdi:alert-circle
+      # Fehler-Entity bei Bedarf anpassen.
+      state: >
+        {% set raw = states('sensor.vaillant_error') %}
+        {% set norm = raw | string | lower %}
+        {{
+          raw not in ['unknown', 'unavailable', 'none', '']
+          and norm not in ['ok', 'no error', '0', 'false', 'off', 'safe']
+        }}
+      attributes:
+        error_code: "{{ states('sensor.vaillant_error') }}"
+        source_entity: sensor.vaillant_error
+        note: "Configure vaillant error sensor if available"
+
+    - name: Vaillant Pressure Critical
+      unique_id: vaillant_suite_pressure_critical
+      device_class: problem
+      icon: mdi:water-alert-outline
+      state: >
+        {% set raw = states('sensor.vaillant_water_pressure') %}
+        {{ raw not in ['unknown', 'unavailable', 'none', ''] and (raw | float(99)) < 1.0 }}
+      delay_on:
+        minutes: 5
+      attributes:
+        pressure_bar: >
+          {% set raw = states('sensor.vaillant_water_pressure') %}
+          {{ raw if raw not in ['unknown', 'unavailable', 'none', ''] else 'n/a' }}
+        threshold_bar: "1.0"
+
+    - name: Vaillant Pressure Low
+      unique_id: vaillant_suite_pressure_low
+      device_class: problem
+      icon: mdi:water-alert
+      state: >
+        {% set raw = states('sensor.vaillant_water_pressure') %}
+        {{ raw not in ['unknown', 'unavailable', 'none', ''] and (raw | float(99)) < 1.2 }}
+      delay_on:
+        minutes: 15
+      attributes:
+        pressure_bar: >
+          {% set raw = states('sensor.vaillant_water_pressure') %}
+          {{ raw if raw not in ['unknown', 'unavailable', 'none', ''] else 'n/a' }}
+        threshold_bar: "1.2"
+
+    - name: Vaillant Any TRV Offline
+      unique_id: vaillant_suite_any_trv_offline
+      device_class: problem
+      icon: mdi:thermometer-alert
+      # Weitere TRVs ergänzen, sobald Räume aktiv sind.
+      state: >
+        {% set trvs = [
+          'climate.thermostat_office'
+        ] %}
+        {% set ns = namespace(count=0) %}
+        {% for ent in trvs %}
+          {% if states(ent) in ['unknown', 'unavailable'] %}
+            {% set ns.count = ns.count + 1 %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.count > 0 }}
+      delay_on:
+        minutes: 15
+      attributes:
+        offline_devices: >
+          {% set trvs = [
+            'climate.thermostat_office'
+          ] %}
+          {% set ns = namespace(items=[]) %}
+          {% for ent in trvs %}
+            {% if states(ent) in ['unknown', 'unavailable'] %}
+              {% set name = state_attr(ent, 'friendly_name') | default(ent, true) %}
+              {% set ns.items = ns.items + [name] %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.items }}
+        note: "Add more TRV climate entities as rooms are enabled"
+
+    - name: Vaillant Any Low Battery
+      unique_id: vaillant_suite_any_low_battery
+      device_class: battery
+      icon: mdi:battery-alert
+      # Batteriesensoren ergänzen, sobald verfügbar.
+      state: >
+        {% set battery_entities = [
+          'sensor.esp_wohnzimmer_battery',
+          'sensor.presence_office_battery',
+          'sensor.fenster_office_battery'
+        ] %}
+        {% set ns = namespace(low=[]) %}
+        {% for ent in battery_entities %}
+          {% set raw = states(ent) %}
+          {% if raw not in ['unknown', 'unavailable', 'none', ''] %}
+            {% set pct = raw | float(101) %}
+            {% if pct < 20 %}
+              {% set ns.low = ns.low + [ent] %}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.low | count > 0 }}
+      attributes:
+        low_battery_devices: >
+          {% set battery_entities = [
+            'sensor.esp_wohnzimmer_battery',
+            'sensor.presence_office_battery',
+            'sensor.fenster_office_battery'
+          ] %}
+          {% set ns = namespace(items=[]) %}
+          {% for ent in battery_entities %}
+            {% set raw = states(ent) %}
+            {% if raw not in ['unknown', 'unavailable', 'none', ''] %}
+              {% set pct = raw | float(101) %}
+              {% if pct < 20 %}
+                {% set name = state_attr(ent, 'friendly_name') | default(ent, true) %}
+                {% set ns.items = ns.items + [name ~ ' (' ~ (pct | round(0)) ~ '%)'] %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.items }}
+        note: "Add battery sensors as configured"
+
+- sensor:
+    # ─────────────────────────────────────────────────────
+    # 6. AGGREGATED SENSORS
+    # ─────────────────────────────────────────────────────
+    - name: Vaillant Coldest Room
+      unique_id: vaillant_suite_coldest_room
+      device_class: temperature
+      unit_of_measurement: "°C"
+      icon: mdi:thermometer-chevron-down
+      state: >
+        {% set ns = namespace(temps=[]) %}
+
+        {% set w_raw = states('sensor.esp_wohnzimmer_temperature') %}
+        {% if w_raw not in ['unknown', 'unavailable', 'none', ''] %}
+          {% set w_val = w_raw | float(999) %}
+          {% if w_val > -30 and w_val < 60 %}
+            {% set ns.temps = ns.temps + [{'room': 'Wohnzimmer', 'temp': w_val}] %}
+          {% endif %}
+        {% endif %}
+
+        {% set o_raw = states('sensor.temp_office_temperature') %}
+        {% if o_raw not in ['unknown', 'unavailable', 'none', ''] %}
+          {% set o_val = o_raw | float(999) %}
+          {% if o_val > -30 and o_val < 60 %}
+            {% set ns.temps = ns.temps + [{'room': 'Office', 'temp': o_val}] %}
+          {% endif %}
+        {% endif %}
+
+        {% set o_trv = state_attr('climate.thermostat_office', 'current_temperature') %}
+        {% if o_trv is not none %}
+          {% set o_trv_val = o_trv | float(999) %}
+          {% if o_trv_val > -30 and o_trv_val < 60 %}
+            {% set ns.temps = ns.temps + [{'room': 'Office (TRV)', 'temp': o_trv_val}] %}
+          {% endif %}
+        {% endif %}
+
+        {% if ns.temps | count > 0 %}
+          {{ (ns.temps | sort(attribute='temp') | first).temp }}
+        {% else %}
+          unknown
+        {% endif %}
+      attributes:
+        room_name: >
+          {% set ns = namespace(temps=[]) %}
+
+          {% set w_raw = states('sensor.esp_wohnzimmer_temperature') %}
+          {% if w_raw not in ['unknown', 'unavailable', 'none', ''] %}
+            {% set w_val = w_raw | float(999) %}
+            {% if w_val > -30 and w_val < 60 %}
+              {% set ns.temps = ns.temps + [{'room': 'Wohnzimmer', 'temp': w_val}] %}
+            {% endif %}
+          {% endif %}
+
+          {% set o_raw = states('sensor.temp_office_temperature') %}
+          {% if o_raw not in ['unknown', 'unavailable', 'none', ''] %}
+            {% set o_val = o_raw | float(999) %}
+            {% if o_val > -30 and o_val < 60 %}
+              {% set ns.temps = ns.temps + [{'room': 'Office', 'temp': o_val}] %}
+            {% endif %}
+          {% endif %}
+
+          {% set o_trv = state_attr('climate.thermostat_office', 'current_temperature') %}
+          {% if o_trv is not none %}
+            {% set o_trv_val = o_trv | float(999) %}
+            {% if o_trv_val > -30 and o_trv_val < 60 %}
+              {% set ns.temps = ns.temps + [{'room': 'Office (TRV)', 'temp': o_trv_val}] %}
+            {% endif %}
+          {% endif %}
+
+          {% if ns.temps | count > 0 %}
+            {{ (ns.temps | sort(attribute='temp') | first).room }}
+          {% else %}
+            n/a
+          {% endif %}
+        sources_count: >
+          {% set ns = namespace(count=0) %}
+          {% if states('sensor.esp_wohnzimmer_temperature') not in ['unknown', 'unavailable', 'none', ''] %}
+            {% set ns.count = ns.count + 1 %}
+          {% endif %}
+          {% if states('sensor.temp_office_temperature') not in ['unknown', 'unavailable', 'none', ''] %}
+            {% set ns.count = ns.count + 1 %}
+          {% endif %}
+          {% if state_attr('climate.thermostat_office', 'current_temperature') is not none %}
+            {% set ns.count = ns.count + 1 %}
+          {% endif %}
+          {{ ns.count }}
+
+    - name: Vaillant Average Indoor Temp
+      unique_id: vaillant_suite_average_indoor_temp
+      device_class: temperature
+      unit_of_measurement: "°C"
+      icon: mdi:thermometer
+      state: >
+        {% set ns = namespace(vals=[]) %}
+
+        {% set w_raw = states('sensor.esp_wohnzimmer_temperature') %}
+        {% if w_raw not in ['unknown', 'unavailable', 'none', ''] %}
+          {% set w_val = w_raw | float(999) %}
+          {% if w_val > -30 and w_val < 60 %}
+            {% set ns.vals = ns.vals + [w_val] %}
+          {% endif %}
+        {% endif %}
+
+        {% set o_raw = states('sensor.temp_office_temperature') %}
+        {% if o_raw not in ['unknown', 'unavailable', 'none', ''] %}
+          {% set o_val = o_raw | float(999) %}
+          {% if o_val > -30 and o_val < 60 %}
+            {% set ns.vals = ns.vals + [o_val] %}
+          {% endif %}
+        {% endif %}
+
+        {% set o_trv = state_attr('climate.thermostat_office', 'current_temperature') %}
+        {% if o_trv is not none %}
+          {% set o_trv_val = o_trv | float(999) %}
+          {% if o_trv_val > -30 and o_trv_val < 60 %}
+            {% set ns.vals = ns.vals + [o_trv_val] %}
+          {% endif %}
+        {% endif %}
+
+        {% if ns.vals | count > 0 %}
+          {{ ((ns.vals | sum) / (ns.vals | count)) | round(1) }}
+        {% else %}
+          unknown
+        {% endif %}
+      attributes:
+        included_sources: >
+          {% set ns = namespace(items=[]) %}
+          {% if states('sensor.esp_wohnzimmer_temperature') not in ['unknown', 'unavailable', 'none', ''] %}
+            {% set ns.items = ns.items + ['Wohnzimmer'] %}
+          {% endif %}
+          {% if states('sensor.temp_office_temperature') not in ['unknown', 'unavailable', 'none', ''] %}
+            {% set ns.items = ns.items + ['Office'] %}
+          {% endif %}
+          {% if state_attr('climate.thermostat_office', 'current_temperature') is not none %}
+            {% set ns.items = ns.items + ['Office (TRV)'] %}
+          {% endif %}
+          {{ ns.items }}
