@@ -1,0 +1,930 @@
+blueprint:
+  name: "(Vaillant) System-Diagnose"
+  description: |
+    🩺 **Modul 2: Der System-Wächter**
+
+    Überwacht die Gesundheit Ihrer Vaillant-Heizung und Sensoren. Sendet Warnungen, greift aber niemals in die Heizung ein.
+
+    **Funktionen:**
+    - 🔋 Batterie-Check aller TRVs & Sensoren.
+    - 📡 Offline-Erkennung (tote Geräte finden).
+    - 💧 Wasserdruck-Überwachung (Schutz vor Trockenlauf).
+    - 📉 Effizienz-Check (COP/JAZ Warnungen).
+    - ⚠️ Master-Thermostat Offline Alarm.
+
+    **Kompatibilität:**
+    Kann parallel zu "Core Heating" oder alleine genutzt werden.
+
+    **Autor:** bananapower | **Version:** v1.0 (Microservices Edition)
+
+  domain: automation
+  source_url: https://raw.githubusercontent.com/howtobanana/vaillant-suite-blueprints/main/blueprints/vaillant_system-diagnose.yaml
+  author: "bananapower"
+
+  input:
+
+    section_overview:
+      name: "🧰 Health & Monitoring"
+      description: |
+        Überwacht TRV/Sensor-Health, längere Master-Offlines sowie Druck/Effizienz-Übergänge.
+      collapsed: false
+      input:
+        enable_monitoring:
+          name: "🔘 Monitoring aktiv"
+          description: |
+            Schalter: Technik- und Sensor-Monitoring ein/aus.
+          default: true
+          selector:
+            boolean:
+        enable_safe_mode:
+          name: "🔘 Safe Mode aktiv"
+          description: |
+            Schalter: Offline-Reminder >3h aktivieren/deaktivieren.
+          default: true
+          selector:
+            boolean:
+        master_climate:
+          name: "♨️ Master Thermostat (opt)"
+          description: |
+            Zentrale Vaillant-Therme (z.B. climate.vaillant_vrc_700).
+          default: ""
+          selector:
+            entity:
+              domain: climate
+        master_name:
+          name: "🏷️ Master Name (opt)"
+          description: |
+            Wert: Anzeigename für Meldungen.
+          default: ""
+          selector:
+            text:
+        vaillant_error_entity:
+          name: "⚠️ Fehler-Code Sensor (opt)"
+          description: "Sensor, der Fehlercodes anzeigt (z.B. sensor.vaillant_error). Alarm wird ausgelöst, wenn dieser Wert NICHT 'OK', '0', 'None' oder 'No Error' ist."
+          default: ""
+          selector:
+            entity:
+
+    section_rooms:
+      name: "🏠 Räume (für TRV Health)"
+      description: |
+        Räume für Offline- und Batteriechecks.
+      collapsed: true
+      input:
+        room2_enabled:
+          name: "🔘 Raum 2 aktiv"
+          description: |
+            Schalter: Raum 2 in Health-Checks einbeziehen.
+          default: false
+          selector:
+            boolean:
+        room2_name:
+          name: "🏷️ Raum 2 Name"
+          description: |
+            Wert: Anzeigename für Meldungen.
+          default: ""
+          selector:
+            text:
+        room2_climate:
+          name: "♨️ Raum 2 TRV"
+          description: |
+            TRV für Raum 2.
+          default: ""
+          selector:
+            entity:
+              domain: climate
+        room2_temp_sensor:
+          name: "🌡️ Raum 2 Temp Sensor (opt)"
+          description: |
+            Optionaler Temperatursensor für Offline-Checks.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+        room2_battery_sensor:
+          name: "🔋 Raum 2 Batterie Sensor (opt)"
+          description: |
+            Optionaler Batteriestand von Raum 2 TRV.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: battery
+
+        room3_enabled:
+          name: "🔘 Raum 3 aktiv"
+          description: |
+            Schalter: Raum 3 in Health-Checks einbeziehen.
+          default: false
+          selector:
+            boolean:
+        room3_name:
+          name: "🏷️ Raum 3 Name"
+          description: |
+            Wert: Anzeigename für Meldungen.
+          default: ""
+          selector:
+            text:
+        room3_climate:
+          name: "♨️ Raum 3 TRV"
+          description: |
+            TRV für Raum 3.
+          default: ""
+          selector:
+            entity:
+              domain: climate
+        room3_temp_sensor:
+          name: "🌡️ Raum 3 Temp Sensor (opt)"
+          description: |
+            Optionaler Temperatursensor für Offline-Checks.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+        room3_battery_sensor:
+          name: "🔋 Raum 3 Batterie Sensor (opt)"
+          description: |
+            Optionaler Batteriestand von Raum 3 TRV.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: battery
+
+        room4_enabled:
+          name: "🔘 Raum 4 aktiv"
+          description: |
+            Schalter: Raum 4 in Health-Checks einbeziehen.
+          default: false
+          selector:
+            boolean:
+        room4_name:
+          name: "🏷️ Raum 4 Name"
+          description: |
+            Wert: Anzeigename für Meldungen.
+          default: ""
+          selector:
+            text:
+        room4_climate:
+          name: "♨️ Raum 4 TRV"
+          description: |
+            TRV für Raum 4.
+          default: ""
+          selector:
+            entity:
+              domain: climate
+        room4_temp_sensor:
+          name: "🌡️ Raum 4 Temp Sensor (opt)"
+          description: |
+            Optionaler Temperatursensor für Offline-Checks.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+        room4_battery_sensor:
+          name: "🔋 Raum 4 Batterie Sensor (opt)"
+          description: |
+            Optionaler Batteriestand von Raum 4 TRV.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: battery
+
+        room5_enabled:
+          name: "🔘 Raum 5 aktiv"
+          description: |
+            Schalter: Raum 5 in Health-Checks einbeziehen.
+          default: false
+          selector:
+            boolean:
+        room5_name:
+          name: "🏷️ Raum 5 Name"
+          description: |
+            Wert: Anzeigename für Meldungen.
+          default: ""
+          selector:
+            text:
+        room5_climate:
+          name: "♨️ Raum 5 TRV"
+          description: |
+            TRV für Raum 5.
+          default: ""
+          selector:
+            entity:
+              domain: climate
+        room5_temp_sensor:
+          name: "🌡️ Raum 5 Temp Sensor (opt)"
+          description: |
+            Optionaler Temperatursensor für Offline-Checks.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+        room5_battery_sensor:
+          name: "🔋 Raum 5 Batterie Sensor (opt)"
+          description: |
+            Optionaler Batteriestand von Raum 5 TRV.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: battery
+
+        master_temp_sensor:
+          name: "🌡️ Master Temp Sensor (opt)"
+          description: |
+            Optionaler Temperatursensor für Master-Offline-Checks.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: temperature
+        master_battery_sensor:
+          name: "🔋 Master Batterie Sensor (opt)"
+          description: |
+            Optionaler Batteriestand des Master-TRV.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: battery
+
+    section_thresholds:
+      name: "🎯 Schwellenwerte"
+      description: |
+        Verzögerungen und Schwellwerte für Health-Alerts.
+      collapsed: true
+      input:
+        enable_trv_health_alerts:
+          name: "🔘 TRV Health Alerts"
+          description: |
+            Schalter: Meldung bei offline TRVs/Temperatursensoren und niedriger TRV-Batterie.
+          default: true
+          selector:
+            boolean:
+        trv_health_alert_delay_min:
+          name: "⏱️ TRV/Sensor Delay (min)"
+          description: |
+            Meldet erst nach stabiler Offline-/Low-Battery-Zeit (gegen Fehlalarme).
+          default: 15
+          selector:
+            number:
+              min: 5
+              max: 120
+              step: 5
+              unit_of_measurement: "min"
+        trv_battery_threshold:
+          name: "🔋 TRV Batterie Schwelle (%)"
+          description: |
+            Unterhalb dieser Schwelle wird ein Batterie-Hinweis gesendet.
+          default: 20
+          selector:
+            number:
+              min: 5
+              max: 50
+              step: 1
+              unit_of_measurement: "%"
+        min_water_pressure:
+          name: "💧 Min. Wasserdruck (Bar)"
+          description: |
+            Kritische Untergrenze für den Anlagendruck.
+            Die Warnstufe liegt automatisch 0.2 bar darüber.
+          default: 1.0
+          selector:
+            number:
+              min: 0.5
+              max: 3.0
+              step: 0.1
+              unit_of_measurement: "bar"
+        min_efficiency_cop:
+          name: "📉 Min. Effizienz (COP)"
+          description: |
+            Unterhalb dieses COP-Werts wird eine Effizienz-Warnung ausgelöst.
+          default: 2.5
+          selector:
+            number:
+              min: 0.5
+              max: 6.0
+              step: 0.1
+        water_pressure_sensor:
+          name: "🔧 Wasserdruck Sensor"
+          description: |
+            Systemdruck in bar (z.B. sensor.vaillant_water_pressure).
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: pressure
+        efficiency_sensor:
+          name: "🔧 Effizienz Sensor"
+          description: |
+            COP/JAZ Score (z.B. sensor.vaillant_efficiency_cop).
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+
+    section_notifications:
+      name: "🔔 Benachrichtigungen"
+      description: |
+        Ziele und Schalter für Warnungen, Infos und kritische Meldungen.
+      collapsed: true
+      input:
+        notifications_enabled:
+          name: "🔘 Benachrichtigungen global"
+          description: |
+            Master-Schalter für alle Push-Benachrichtigungen.
+          default: true
+          selector:
+            boolean:
+        critical_beep_enabled:
+          name: "🔘 Kritische Beep-Alerts (nicht stumm)"
+          description: |
+            Schalter: Kritische Alarme mit nicht-stummem Ton senden.
+          default: true
+          selector:
+            boolean:
+        notify_critical_errors:
+          name: "🔔 Kritische Heizungs-Meldungen"
+          description: |
+            Schalter: Kritische Ereignisse melden (z.B. kritischer Druck).
+          default: false
+          selector:
+            boolean:
+        notify_warnings:
+          name: "🔔 Warnungen"
+          description: |
+            Schalter: TRV-Health, Druck und Effizienz-Warnungen melden.
+          default: false
+          selector:
+            boolean:
+        notify_info:
+          name: "🔔 Info-Updates"
+          description: |
+            Schalter: Recovery-/Normalisierungs-Meldungen senden.
+          default: false
+          selector:
+            boolean:
+        notify_warning_entities:
+          name: "📨 Empfänger: Normal Mobile-App Geräte"
+          description: |
+            Mobile-App Geräte für Warnungen/Infos.
+          default: []
+          selector:
+            device:
+              filter:
+                integration: mobile_app
+              multiple: true
+        notify_critical_entities:
+          name: "📨 Empfänger: Kritische Mobile-App Geräte"
+          description: |
+            Mobile-App Geräte für kritische Alerts.
+          default: []
+          selector:
+            device:
+              filter:
+                integration: mobile_app
+              multiple: true
+
+mode: restart
+
+trigger_variables:
+  tv_water_pressure_sensor: !input water_pressure_sensor
+  tv_min_water_pressure: !input min_water_pressure
+  tv_efficiency_sensor: !input efficiency_sensor
+  tv_min_efficiency_cop: !input min_efficiency_cop
+
+trigger:
+  - platform: time_pattern
+    minutes: "/30"
+    id: main_loop
+
+  - platform: state
+    entity_id: !input vaillant_error_entity
+    id: error_code_change
+
+  - platform: template
+    value_template: >
+      {{
+        tv_water_pressure_sensor != ''
+        and states(tv_water_pressure_sensor) not in ['unknown', 'unavailable', 'none', '']
+        and (states(tv_water_pressure_sensor) | float(999)) < ((tv_min_water_pressure | float(1.0)) + 0.2)
+        and (states(tv_water_pressure_sensor) | float(999)) >= (tv_min_water_pressure | float(1.0))
+      }}
+    id: low_pressure
+
+  - platform: numeric_state
+    entity_id: !input water_pressure_sensor
+    below: !input min_water_pressure
+    id: critical_pressure
+
+  - platform: template
+    value_template: >
+      {{
+        tv_efficiency_sensor != ''
+        and states(tv_efficiency_sensor) not in ['unknown', 'unavailable', 'none', '']
+        and (states(tv_efficiency_sensor) | float(999)) < (tv_min_efficiency_cop | float(2.5))
+      }}
+    id: bad_efficiency
+
+condition: []
+
+action:
+  - variables:
+      inputs:
+        enable_monitoring: !input enable_monitoring
+        enable_safe_mode: !input enable_safe_mode
+        master_climate: !input master_climate
+        master_name: !input master_name
+        vaillant_error_entity: !input vaillant_error_entity
+        room2_enabled: !input room2_enabled
+        room2_name: !input room2_name
+        room2_climate: !input room2_climate
+        room2_temp_sensor: !input room2_temp_sensor
+        room2_battery_sensor: !input room2_battery_sensor
+        room3_enabled: !input room3_enabled
+        room3_name: !input room3_name
+        room3_climate: !input room3_climate
+        room3_temp_sensor: !input room3_temp_sensor
+        room3_battery_sensor: !input room3_battery_sensor
+        room4_enabled: !input room4_enabled
+        room4_name: !input room4_name
+        room4_climate: !input room4_climate
+        room4_temp_sensor: !input room4_temp_sensor
+        room4_battery_sensor: !input room4_battery_sensor
+        room5_enabled: !input room5_enabled
+        room5_name: !input room5_name
+        room5_climate: !input room5_climate
+        room5_temp_sensor: !input room5_temp_sensor
+        room5_battery_sensor: !input room5_battery_sensor
+        master_temp_sensor: !input master_temp_sensor
+        master_battery_sensor: !input master_battery_sensor
+        enable_trv_health_alerts: !input enable_trv_health_alerts
+        trv_health_alert_delay_min: !input trv_health_alert_delay_min
+        trv_battery_threshold: !input trv_battery_threshold
+        min_water_pressure: !input min_water_pressure
+        min_efficiency_cop: !input min_efficiency_cop
+        water_pressure_sensor: !input water_pressure_sensor
+        efficiency_sensor: !input efficiency_sensor
+        notifications_enabled: !input notifications_enabled
+        critical_beep_enabled: !input critical_beep_enabled
+        notify_critical_errors: !input notify_critical_errors
+        notify_warnings: !input notify_warnings
+        notify_info: !input notify_info
+        notify_warning_entities: !input notify_warning_entities
+        notify_critical_entities: !input notify_critical_entities
+      master_label: >
+        {% if inputs.master_name != "" %}
+          {{ inputs.master_name }}
+        {% else %}
+          Master
+        {% endif %}
+      room2_label: >
+        {% if inputs.room2_name != "" %}
+          {{ inputs.room2_name }}
+        {% else %}
+          Raum 2
+        {% endif %}
+      room3_label: >
+        {% if inputs.room3_name != "" %}
+          {{ inputs.room3_name }}
+        {% else %}
+          Raum 3
+        {% endif %}
+      room4_label: >
+        {% if inputs.room4_name != "" %}
+          {{ inputs.room4_name }}
+        {% else %}
+          Raum 4
+        {% endif %}
+      room5_label: >
+        {% if inputs.room5_name != "" %}
+          {{ inputs.room5_name }}
+        {% else %}
+          Raum 5
+        {% endif %}
+      normal_notify_targets_list: >
+        {% set raw = inputs.notify_warning_entities %}
+        {% set ns = namespace(items=[]) %}
+        {% if raw is string %}
+          {% for part in raw.replace('\n', ',').split(',') %}
+            {% set ent = part | trim %}
+            {% if ent[:7] == 'notify.' %}
+              {% set ns.items = ns.items + [ent] %}
+            {% elif ent != '' %}
+              {% set user_name = device_attr(ent, 'name_by_user') %}
+              {% set dev_name = user_name if (user_name is string and (user_name | trim) != '') else device_attr(ent, 'name') %}
+              {% if dev_name is string and (dev_name | trim) != '' %}
+                {% set ns.items = ns.items + ['notify.mobile_app_' ~ ((dev_name | slugify) | replace('-', '_'))] %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        {% elif raw is iterable %}
+          {% for ent_raw in raw %}
+            {% set ent = (ent_raw | string) | trim %}
+            {% if ent[:7] == 'notify.' %}
+              {% set ns.items = ns.items + [ent] %}
+            {% elif ent != '' %}
+              {% set user_name = device_attr(ent, 'name_by_user') %}
+              {% set dev_name = user_name if (user_name is string and (user_name | trim) != '') else device_attr(ent, 'name') %}
+              {% if dev_name is string and (dev_name | trim) != '' %}
+                {% set ns.items = ns.items + ['notify.mobile_app_' ~ ((dev_name | slugify) | replace('-', '_'))] %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {{ ns.items | unique | join(',') }}
+      critical_notify_targets_list: >
+        {% set raw = inputs.notify_critical_entities %}
+        {% set ns = namespace(items=[]) %}
+        {% if raw is string %}
+          {% for part in raw.replace('\n', ',').split(',') %}
+            {% set ent = part | trim %}
+            {% if ent[:7] == 'notify.' %}
+              {% set ns.items = ns.items + [ent] %}
+            {% elif ent != '' %}
+              {% set user_name = device_attr(ent, 'name_by_user') %}
+              {% set dev_name = user_name if (user_name is string and (user_name | trim) != '') else device_attr(ent, 'name') %}
+              {% if dev_name is string and (dev_name | trim) != '' %}
+                {% set ns.items = ns.items + ['notify.mobile_app_' ~ ((dev_name | slugify) | replace('-', '_'))] %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        {% elif raw is iterable %}
+          {% for ent_raw in raw %}
+            {% set ent = (ent_raw | string) | trim %}
+            {% if ent[:7] == 'notify.' %}
+              {% set ns.items = ns.items + [ent] %}
+            {% elif ent != '' %}
+              {% set user_name = device_attr(ent, 'name_by_user') %}
+              {% set dev_name = user_name if (user_name is string and (user_name | trim) != '') else device_attr(ent, 'name') %}
+              {% if dev_name is string and (dev_name | trim) != '' %}
+                {% set ns.items = ns.items + ['notify.mobile_app_' ~ ((dev_name | slugify) | replace('-', '_'))] %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {% if ns.items | length > 0 %}
+          {{ ns.items | unique | join(',') }}
+        {% else %}
+          {{ normal_notify_targets_list }}
+        {% endif %}
+      critical_notify_direct_targets_list: >
+        {% set raw = inputs.notify_critical_entities %}
+        {% set ns = namespace(items=[]) %}
+        {% if raw is string %}
+          {% for part in raw.replace('\n', ',').split(',') %}
+            {% set ent = part | trim %}
+            {% if ent[:7] == 'notify.' %}
+              {% set ns.items = ns.items + [ent] %}
+            {% elif ent != '' %}
+              {% set user_name = device_attr(ent, 'name_by_user') %}
+              {% set dev_name = user_name if (user_name is string and (user_name | trim) != '') else device_attr(ent, 'name') %}
+              {% if dev_name is string and (dev_name | trim) != '' %}
+                {% set ns.items = ns.items + ['notify.mobile_app_' ~ ((dev_name | slugify) | replace('-', '_'))] %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        {% elif raw is iterable %}
+          {% for ent_raw in raw %}
+            {% set ent = (ent_raw | string) | trim %}
+            {% if ent[:7] == 'notify.' %}
+              {% set ns.items = ns.items + [ent] %}
+            {% elif ent != '' %}
+              {% set user_name = device_attr(ent, 'name_by_user') %}
+              {% set dev_name = user_name if (user_name is string and (user_name | trim) != '') else device_attr(ent, 'name') %}
+              {% if dev_name is string and (dev_name | trim) != '' %}
+                {% set ns.items = ns.items + ['notify.mobile_app_' ~ ((dev_name | slugify) | replace('-', '_'))] %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {{ ns.items | unique | join(',') }}
+      notifications_enabled: "{{ inputs.notifications_enabled }}"
+      warning_notifications_allowed: "{{ notifications_enabled and inputs.notify_warnings }}"
+      info_notifications_allowed: "{{ notifications_enabled and inputs.notify_info }}"
+      critical_notifications_allowed: "{{ notifications_enabled and inputs.notify_critical_errors }}"
+      critical_beep_allowed: "{{ inputs.critical_beep_enabled }}"
+      master_climate_state: >
+        {% if inputs.master_climate != "" %}
+          {{ states(inputs.master_climate) }}
+        {% else %}
+          unknown
+        {% endif %}
+      master_offline_hours: >
+        {% if inputs.master_climate != "" %}
+          {% set st = expand([inputs.master_climate]) | first %}
+          {% if st is not none and st.state in ['unavailable', 'unknown'] and st.last_changed is defined %}
+            {% set dt = st.last_changed | as_datetime %}
+            {% if dt is not none %}
+              {{ ((as_timestamp(now()) - as_timestamp(dt, as_timestamp(now()))) / 3600) }}
+            {% else %}
+              0
+            {% endif %}
+          {% else %}
+            0
+          {% endif %}
+        {% else %}
+          0
+        {% endif %}
+      water_pressure_sensor_configured: >
+        {{ inputs.water_pressure_sensor != '' }}
+      efficiency_sensor_configured: >
+        {{ inputs.efficiency_sensor != '' }}
+      error_code_state_raw: >
+        {% if trigger.id == 'error_code_change' and trigger.to_state is defined and trigger.to_state is not none %}
+          {{ trigger.to_state.state }}
+        {% elif inputs.vaillant_error_entity != '' %}
+          {{ states(inputs.vaillant_error_entity) }}
+        {% else %}
+          unknown
+        {% endif %}
+      error_code_state: "{{ (error_code_state_raw | string) | trim }}"
+      error_code_valid: "{{ error_code_state not in ['unknown', 'unavailable', 'none', 'None', ''] }}"
+      error_code_ok: "{{ error_code_state in ['OK', 'ok', 'No Error', 'no error', '0', 'False', 'false', 'off', 'safe'] }}"
+
+  # ===== ERROR CODE MONITORING =====
+  - choose:
+      - conditions:
+          - "{{ inputs.enable_monitoring }}"
+          - "{{ trigger.id == 'error_code_change' }}"
+          - "{{ inputs.vaillant_error_entity != '' }}"
+          - "{{ critical_notifications_allowed }}"
+          - "{{ critical_notify_direct_targets_list | length > 0 }}"
+          - "{{ trigger.to_state is defined and trigger.to_state is not none }}"
+          - "{{ trigger.to_state.state not in ['unknown', 'unavailable', 'none', 'None', ''] }}"
+          - "{{ error_code_valid }}"
+          - "{{ not error_code_ok }}"
+        sequence:
+          - choose:
+              - conditions: "{{ critical_beep_allowed }}"
+                sequence:
+                  - repeat:
+                      for_each: "{{ critical_notify_direct_targets_list.split(',') if (critical_notify_direct_targets_list | trim) != '' else [] }}"
+                      sequence:
+                        - service: "{{ item }}"
+                          data:
+                            title: "🚨 Heizung Störung!"
+                            message: "Fehlercode erkannt: {{ error_code_state }}."
+                            data:
+                              push:
+                                interruption-level: critical
+                                sound:
+                                  name: alarm.caf
+                                  critical: 1
+                                  volume: 1.0
+                                ttl: 0
+                                priority: high
+                          continue_on_error: true
+            default:
+              - repeat:
+                  for_each: "{{ critical_notify_direct_targets_list.split(',') if (critical_notify_direct_targets_list | trim) != '' else [] }}"
+                  sequence:
+                    - service: "{{ item }}"
+                      data:
+                        title: "🚨 Heizung Störung!"
+                        message: "Fehlercode erkannt: {{ error_code_state }}."
+                      continue_on_error: true
+  # ===== STEP 1.75: MASTER OFFLINE >3H REMINDER =====
+  - choose:
+      - conditions:
+          - "{{ inputs.enable_safe_mode }}"
+          - "{{ inputs.master_climate != '' }}"
+          - "{{ trigger.id == 'main_loop' }}"
+          - "{{ master_climate_state in ['unavailable', 'unknown'] }}"
+          - "{{ master_offline_hours >= 3 }}"
+          - "{{ master_offline_hours < 3.5 }}"
+          - "{{ warning_notifications_allowed }}"
+          - "{{ normal_notify_targets_list | length > 0 }}"
+        sequence:
+          - repeat:
+              for_each: "{{ normal_notify_targets_list.split(',') if (normal_notify_targets_list | trim) != '' else [] }}"
+              sequence:
+                - service: "{{ item }}"
+                  data:
+                    title: "⚠️ MyVaillant länger offline"
+                    message: >
+                      Master seit {{ master_offline_hours | round(1) }}h offline.
+                      Bitte Master-Thermostat manuell auf AUTO setzen, bis die Integration wieder online ist.
+                  continue_on_error: true
+
+
+  # ===== STEP 2.6: TRV HEALTH ALERTS =====
+  - choose:
+      - conditions:
+          - "{{ inputs.enable_monitoring }}"
+          - "{{ inputs.enable_trv_health_alerts }}"
+          - "{{ trigger.id == 'main_loop' }}"
+        sequence:
+          - variables:
+              trv_health_delay_sec: "{{ (inputs.trv_health_alert_delay_min | int(15)) * 60 }}"
+              trv_health_alert_window_sec: 1800
+              trv_offline_recent: >
+                {% set ns = namespace(items=[]) %}
+                {% set devices = [{'entity': inputs.master_climate, 'label': master_label + ' (TRV)'}] %}
+                {% if inputs.room2_enabled and inputs.room2_climate != '' %}
+                  {% set devices = devices + [{'entity': inputs.room2_climate, 'label': room2_label + ' (TRV)'}] %}
+                {% endif %}
+                {% if inputs.room3_enabled and inputs.room3_climate != '' %}
+                  {% set devices = devices + [{'entity': inputs.room3_climate, 'label': room3_label + ' (TRV)'}] %}
+                {% endif %}
+                {% if inputs.room4_enabled and inputs.room4_climate != '' %}
+                  {% set devices = devices + [{'entity': inputs.room4_climate, 'label': room4_label + ' (TRV)'}] %}
+                {% endif %}
+                {% if inputs.room5_enabled and inputs.room5_climate != '' %}
+                  {% set devices = devices + [{'entity': inputs.room5_climate, 'label': room5_label + ' (TRV)'}] %}
+                {% endif %}
+                {% if inputs.master_temp_sensor != '' %}
+                  {% set devices = devices + [{'entity': inputs.master_temp_sensor, 'label': master_label + ' (Temp Sensor)'}] %}
+                {% endif %}
+                {% if inputs.room2_enabled and inputs.room2_temp_sensor != '' %}
+                  {% set devices = devices + [{'entity': inputs.room2_temp_sensor, 'label': room2_label + ' (Temp Sensor)'}] %}
+                {% endif %}
+                {% if inputs.room3_enabled and inputs.room3_temp_sensor != '' %}
+                  {% set devices = devices + [{'entity': inputs.room3_temp_sensor, 'label': room3_label + ' (Temp Sensor)'}] %}
+                {% endif %}
+                {% if inputs.room4_enabled and inputs.room4_temp_sensor != '' %}
+                  {% set devices = devices + [{'entity': inputs.room4_temp_sensor, 'label': room4_label + ' (Temp Sensor)'}] %}
+                {% endif %}
+                {% if inputs.room5_enabled and inputs.room5_temp_sensor != '' %}
+                  {% set devices = devices + [{'entity': inputs.room5_temp_sensor, 'label': room5_label + ' (Temp Sensor)'}] %}
+                {% endif %}
+                {% for d in devices %}
+                  {% set state_obj = expand([d.entity]) | first %}
+                  {% if state_obj is not none and state_obj.last_changed is defined %}
+                    {% set state_val = states(d.entity) %}
+                    {% set changed_dt = state_obj.last_changed | as_datetime %}
+                    {% set age = ((as_timestamp(now()) - as_timestamp(changed_dt, as_timestamp(now()))) if changed_dt is not none else 999999) %}
+                    {% if state_val in ['unavailable', 'unknown'] and age >= (trv_health_delay_sec | int(900)) and age < ((trv_health_delay_sec | int(900)) + (trv_health_alert_window_sec | int(1800))) %}
+                      {% set ns.items = ns.items + [d.label] %}
+                    {% endif %}
+                  {% endif %}
+                {% endfor %}
+                {{ ns.items }}
+              trv_battery_low_recent: >
+                {% set ns = namespace(items=[]) %}
+                {% set batts = [] %}
+                {% if inputs.master_battery_sensor != '' %}
+                  {% set batts = batts + [{'entity': inputs.master_battery_sensor, 'label': master_label}] %}
+                {% endif %}
+                {% if inputs.room2_enabled and inputs.room2_battery_sensor != '' %}
+                  {% set batts = batts + [{'entity': inputs.room2_battery_sensor, 'label': room2_label}] %}
+                {% endif %}
+                {% if inputs.room3_enabled and inputs.room3_battery_sensor != '' %}
+                  {% set batts = batts + [{'entity': inputs.room3_battery_sensor, 'label': room3_label}] %}
+                {% endif %}
+                {% if inputs.room4_enabled and inputs.room4_battery_sensor != '' %}
+                  {% set batts = batts + [{'entity': inputs.room4_battery_sensor, 'label': room4_label}] %}
+                {% endif %}
+                {% if inputs.room5_enabled and inputs.room5_battery_sensor != '' %}
+                  {% set batts = batts + [{'entity': inputs.room5_battery_sensor, 'label': room5_label}] %}
+                {% endif %}
+                {% for b in batts %}
+                  {% set state_obj = expand([b.entity]) | first %}
+                  {% if state_obj is not none and state_obj.last_changed is defined %}
+                    {% set raw = state_obj.state %}
+                    {% set val = raw | float(999) %}
+                    {% set valid = raw not in ['unknown', 'unavailable', 'none', ''] %}
+                    {% set changed_dt = state_obj.last_changed | as_datetime %}
+                    {% set age = ((as_timestamp(now()) - as_timestamp(changed_dt, as_timestamp(now()))) if changed_dt is not none else 999999) %}
+                    {% if valid and val <= (inputs.trv_battery_threshold | float(20)) and age >= (trv_health_delay_sec | int(900)) and age < ((trv_health_delay_sec | int(900)) + (trv_health_alert_window_sec | int(1800))) %}
+                      {% set ns.items = ns.items + [b.label + ' (' + (val | round(0) | string) + '%)'] %}
+                    {% endif %}
+                  {% endif %}
+                {% endfor %}
+                {{ ns.items }}
+          - choose:
+              - conditions:
+                  - "{{ warning_notifications_allowed }}"
+                  - "{{ normal_notify_targets_list | length > 0 }}"
+                  - "{{ trv_offline_recent | length > 0 }}"
+                sequence:
+                  - repeat:
+                      for_each: "{{ normal_notify_targets_list.split(',') if (normal_notify_targets_list | trim) != '' else [] }}"
+                      sequence:
+                        - service: "{{ item }}"
+                          data:
+                            title: "⚠️ TRV/Sensor offline"
+                            message: >
+                              Keine Daten von: {{ trv_offline_recent | join(', ') }}.
+                              Bitte Geräte/Funkverbindung prüfen.
+                          continue_on_error: true
+          - choose:
+              - conditions:
+                  - "{{ warning_notifications_allowed }}"
+                  - "{{ normal_notify_targets_list | length > 0 }}"
+                  - "{{ trv_battery_low_recent | length > 0 }}"
+                sequence:
+                  - repeat:
+                      for_each: "{{ normal_notify_targets_list.split(',') if (normal_notify_targets_list | trim) != '' else [] }}"
+                      sequence:
+                        - service: "{{ item }}"
+                          data:
+                            title: "🔋 TRV Batterie niedrig"
+                            message: >
+                              Niedrige Batterie erkannt (<= {{ inputs.trv_battery_threshold | int }}%):
+                              {{ trv_battery_low_recent | join(', ') }}.
+                              Bitte Batterien tauschen.
+                          continue_on_error: true
+
+
+  # ===== WATER PRESSURE MONITORING =====
+  - choose:
+      - conditions:
+          - "{{ inputs.enable_monitoring }}"
+          - "{{ trigger.id in ['low_pressure', 'critical_pressure'] }}"
+          - "{{ water_pressure_sensor_configured }}"
+        sequence:
+          - variables:
+              current_pressure: >
+                {% if inputs.water_pressure_sensor != '' and states(inputs.water_pressure_sensor) not in ['unknown', 'unavailable', 'none', ''] %}
+                  {{ states(inputs.water_pressure_sensor) | float(1.5) }}
+                {% else %}
+                  1.5
+                {% endif %}
+              pressure_alert_targets: >
+                {% if critical_notify_targets_list | length > 0 %}
+                  {{ critical_notify_targets_list }}
+                {% else %}
+                  {{ normal_notify_targets_list }}
+                {% endif %}
+          - choose:
+              - conditions:
+                  - "{{ trigger.id == 'critical_pressure' }}"
+                  - "{{ notifications_enabled }}"
+                  - "{{ pressure_alert_targets | length > 0 }}"
+                sequence:
+                  - choose:
+                      - conditions: "{{ critical_notifications_allowed and critical_beep_allowed }}"
+                        sequence:
+                          - repeat:
+                              for_each: "{{ pressure_alert_targets.split(',') if (pressure_alert_targets | trim) != '' else [] }}"
+                              sequence:
+                                - service: "{{ item }}"
+                                  data:
+                                    title: "🚨 WASSERDRUCK KRITISCH"
+                                    message: "Nur {{ current_pressure | round(2) }} bar! Therme in Gefahr - sofort nachfüllen!"
+                                    data:
+                                      push:
+                                        sound:
+                                          name: default
+                                          critical: 1
+                                          volume: 1.0
+                                  continue_on_error: true
+                    default:
+                      - repeat:
+                          for_each: "{{ pressure_alert_targets.split(',') if (pressure_alert_targets | trim) != '' else [] }}"
+                          sequence:
+                            - service: "{{ item }}"
+                              data:
+                                title: "⚠️ Wasserdruck kritisch (leise)"
+                                message: "Nur {{ current_pressure | round(2) }} bar! Therme in Gefahr - sofort nachfüllen!"
+                              continue_on_error: true
+              - conditions:
+                  - "{{ trigger.id == 'low_pressure' }}"
+                  - "{{ (current_pressure | float(0)) < (inputs.min_water_pressure | float(1.0)) }}"
+                  - "{{ warning_notifications_allowed }}"
+                  - "{{ normal_notify_targets_list | length > 0 }}"
+                sequence:
+                  - repeat:
+                      for_each: "{{ normal_notify_targets_list.split(',') if (normal_notify_targets_list | trim) != '' else [] }}"
+                      sequence:
+                        - service: "{{ item }}"
+                          data:
+                            title: "⚠️ Wasserdruck niedrig"
+                            message: "{{ current_pressure | round(2) }} bar - bald nachfüllen empfohlen"
+                          continue_on_error: true
+
+
+  # ===== EFFICIENCY MONITORING =====
+  - choose:
+      - conditions:
+          - "{{ inputs.enable_monitoring }}"
+          - "{{ trigger.id == 'bad_efficiency' }}"
+          - "{{ efficiency_sensor_configured }}"
+        sequence:
+          - variables:
+              current_efficiency: >
+                {% if inputs.efficiency_sensor != '' and states(inputs.efficiency_sensor) not in ['unknown', 'unavailable', 'none', ''] %}
+                  {{ states(inputs.efficiency_sensor) | float(0) }}
+                {% else %}
+                  0
+                {% endif %}
+          - choose:
+              - conditions:
+                  - "{{ warning_notifications_allowed }}"
+                  - "{{ normal_notify_targets_list | length > 0 }}"
+                sequence:
+                  - repeat:
+                      for_each: "{{ normal_notify_targets_list.split(',') if (normal_notify_targets_list | trim) != '' else [] }}"
+                      sequence:
+                        - service: "{{ item }}"
+                          data:
+                            title: "📉 Schlechte Heiz-Effizienz"
+                            message: "Nur {{ current_efficiency | round(2) }} COP/JAZ - Wartung prüfen!"
+                          continue_on_error: true

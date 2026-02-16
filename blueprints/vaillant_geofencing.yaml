@@ -1,0 +1,282 @@
+blueprint:
+  name: "(Vaillant) Geofencing"
+  description: |
+    🌍 **Modul Geofencing & Anwesenheit (Smart Zone)**
+
+    Schlanke Radius-/Personen-Logik für den globalen Away-Helper.
+    Keine Physik-/ETA-Berechnung mehr, nur robuste Distanz- und Person-Regeln.
+
+    **Funktionen:**
+    - 📍 Distanzbasierte Away-Entscheidung über `proximity`.
+    - 👤 Person-basierter Home-Abgleich (`person`-Entity).
+    - ⏱️ Kurzabwesenheits-Filter (Timeout).
+    - 🎚️ Steuert den zentralen "Away-Mode Helper" für Modul 1.
+
+    **Autor:** bananapower | **Version:** v1.0 (Person-Based Edition)
+
+  domain: automation
+  source_url: https://raw.githubusercontent.com/howtobanana/vaillant-suite-blueprints/main/blueprints/vaillant_geofencing.yaml
+  author: "bananapower"
+
+  input:
+    section_geo_fencing:
+      name: "🏠 Anwesenheits-Management"
+      description: |
+        Smart Zone: Entscheidet Away anhand Distanzradius + Person-Status.
+        Der Away-Helper wird sofort gesetzt, wenn die Bedingungen erfüllt sind.
+      collapsed: false
+      input:
+        enable_geofencing:
+          name: "🔘 GeoFencing aktiv"
+          description: |
+            Schalter für die automatische Away-Steuerung.
+          default: false
+          selector:
+            boolean:
+        proximity_entity:
+          name: "📍 Proximity-Entity"
+          description: |
+            Distanzsensor zur Home-Zone (z.B. proximity.home_distance).
+            Erwartete Einheit: km oder m.
+          selector:
+            entity:
+              domain:
+                - sensor
+                - proximity
+        person_entity:
+          name: "👤 Person zum Tracken"
+          description: |
+            Die Person-Entity, die für Anwesenheit geprüft wird (z.B. person.fabian).
+          default: ""
+          selector:
+            entity:
+              domain: person
+        preheat_radius:
+          name: "🎯 Radius-Schwelle (km)"
+          description: |
+            Ab diesem Radius wird Away direkt aktiv (Distance > Radius).
+          default: 5
+          selector:
+            number:
+              min: 0.1
+              max: 100
+              step: 0.1
+              unit_of_measurement: "km"
+        short_absence_timeout:
+          name: "⏱️ Kurzabwesenheit Timeout (min)"
+          description: |
+            Innerhalb des Radius bleibt Away aus, bis seit Verlassen von Home diese Zeit verstrichen ist.
+          default: 20
+          selector:
+            number:
+              min: 0
+              max: 180
+              step: 1
+              unit_of_measurement: "min"
+        away_mode_boolean:
+          name: "Zu steuernder Away-Helper"
+          description: >
+            Dieser input_boolean wird AN/AUS geschaltet (Pflichtfeld für Modul-Verbund).
+            So erstellen Sie ihn: Einstellungen -> Geräte & Dienste -> Helfer -> Helfer erstellen -> Umschalter (input_boolean).
+            Beispiel-Entity: input_boolean.away_mode.
+            Wichtig: Muss derselbe Helper sein, der in "Modul 1 Core Heating" als Eingang gewählt ist.
+          default: []
+          selector:
+            entity:
+              domain: input_boolean
+              multiple: true
+
+    section_notifications:
+      name: "🔔 Benachrichtigungen"
+      description: |
+        Optionale Info-Pushs beim Umschalten des Away-Helpers.
+      collapsed: true
+      input:
+        notifications_enabled:
+          name: "🔘 Benachrichtigungen aktiv"
+          description: |
+            Master-Schalter für Info-Benachrichtigungen.
+          default: false
+          selector:
+            boolean:
+        notify_info:
+          name: "🔔 Info-Updates senden"
+          description: |
+            Sendet Statusmeldungen bei Away EIN/AUS.
+          default: false
+          selector:
+            boolean:
+        notify_entities:
+          name: "📨 Empfänger: Mobile-App Geräte"
+          description: |
+            Mobile-App Geräte für Info-Meldungen.
+          default: []
+          selector:
+            device:
+              filter:
+                integration: mobile_app
+              multiple: true
+
+mode: restart
+
+trigger:
+  - platform: state
+    entity_id: !input proximity_entity
+    id: proximity_change
+
+  - platform: state
+    entity_id: !input person_entity
+    id: person_state_change
+
+  - platform: time_pattern
+    minutes: "/5"
+    id: watchdog_check
+
+condition: []
+
+action:
+  - variables:
+      inputs:
+        enable_geofencing: !input enable_geofencing
+        proximity_entity: !input proximity_entity
+        person_entity: !input person_entity
+        preheat_radius: !input preheat_radius
+        short_absence_timeout: !input short_absence_timeout
+        away_mode_boolean: !input away_mode_boolean
+        notifications_enabled: !input notifications_enabled
+        notify_info: !input notify_info
+        notify_entities: !input notify_entities
+
+      geofencing_enabled: "{{ inputs.enable_geofencing }}"
+      away_mode_helper_set: "{{ inputs.away_mode_boolean | length > 0 }}"
+
+      proximity_valid: >
+        {{ inputs.proximity_entity != '' and states(inputs.proximity_entity) not in ['unknown', 'unavailable', 'none', ''] }}
+
+      distance_km: >
+        {% if proximity_valid %}
+          {% set dist_raw = states(inputs.proximity_entity) | float(0) %}
+          {% set unit = (state_attr(inputs.proximity_entity, 'unit_of_measurement') or 'km') | lower %}
+          {% if unit in ['m', 'meter', 'meters', 'metre', 'metres'] %}
+            {{ dist_raw / 1000 }}
+          {% else %}
+            {{ dist_raw }}
+          {% endif %}
+        {% else %}
+          0
+        {% endif %}
+
+      person_entity_valid: >
+        {{ inputs.person_entity != '' and states(inputs.person_entity) not in ['unknown', 'unavailable', 'none', ''] }}
+
+      anyone_home: >
+        {% if person_entity_valid %}
+          {{ is_state(inputs.person_entity, 'home') }}
+        {% else %}
+          true
+        {% endif %}
+
+      minutes_since_left: >
+        {% if person_entity_valid and not (anyone_home | bool(false)) %}
+          {% set p = expand([inputs.person_entity]) | first %}
+          {% if p is not none and p.last_changed is defined and p.last_changed is not none %}
+            {{ ((as_timestamp(now()) - as_timestamp(p.last_changed, as_timestamp(now()))) / 60) }}
+          {% else %}
+            0
+          {% endif %}
+        {% else %}
+          0
+        {% endif %}
+
+      should_be_away: >
+        {% if (geofencing_enabled | bool(false)) and (away_mode_helper_set | bool(false)) and (proximity_valid | bool(false)) %}
+          {% set dist = distance_km | float(0) %}
+          {% set radius = inputs.preheat_radius | float(5) %}
+          {% set timeout_min = inputs.short_absence_timeout | float(20) %}
+          {% set far_away = dist > radius %}
+          {% set short_absence_rule = (dist < radius) and (not (anyone_home | bool(false))) and ((minutes_since_left | float(0)) > timeout_min) %}
+          {{ far_away or short_absence_rule }}
+        {% else %}
+          false
+        {% endif %}
+
+      away_mode_entity_on: >
+        {% if away_mode_helper_set %}
+          {% set ns = namespace(active=false) %}
+          {% for ent in inputs.away_mode_boolean %}
+            {% if ent is string and ent != '' and is_state(ent, 'on') %}
+              {% set ns.active = true %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.active | bool(false) }}
+        {% else %}
+          false
+        {% endif %}
+
+      info_notifications_allowed: "{{ inputs.notifications_enabled and inputs.notify_info }}"
+
+      normal_notify_targets_list: >
+        {% set raw = inputs.notify_entities %}
+        {% set ns = namespace(items=[]) %}
+        {% if raw is iterable %}
+          {% for ent_raw in raw %}
+            {% set ent = (ent_raw | string) | trim %}
+            {% if ent != '' %}
+              {% set user_name = device_attr(ent, 'name_by_user') %}
+              {% set dev_name = user_name if (user_name is string and (user_name | trim) != '') else device_attr(ent, 'name') %}
+              {% if dev_name is string and (dev_name | trim) != '' %}
+                {% set ns.items = ns.items + ['notify.mobile_app_' ~ ((dev_name | slugify) | replace('-', '_'))] %}
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {{ ns.items | unique | join(',') }}
+
+  - choose:
+      - conditions: "{{ (should_be_away | bool(false)) and (not (away_mode_entity_on | bool(false))) }}"
+        sequence:
+          - repeat:
+              for_each: "{{ inputs.away_mode_boolean if (inputs.away_mode_boolean is iterable and inputs.away_mode_boolean is not string) else [] }}"
+              sequence:
+                - service: input_boolean.turn_on
+                  target:
+                    entity_id: "{{ item }}"
+                  continue_on_error: true
+
+          - choose:
+              - conditions:
+                  - "{{ info_notifications_allowed }}"
+                  - "{{ normal_notify_targets_list | length > 0 }}"
+                sequence:
+                  - repeat:
+                      for_each: "{{ normal_notify_targets_list.split(',') if (normal_notify_targets_list | trim) != '' else [] }}"
+                      sequence:
+                        - service: "{{ item }}"
+                          data:
+                            title: "🌍 Away-Mode aktiviert"
+                            message: "Distanz {{ distance_km | round(2) }} km, Person-Status: {{ states(inputs.person_entity) if inputs.person_entity != '' else 'unbekannt' }}."
+                          continue_on_error: true
+
+      - conditions: "{{ (not (should_be_away | bool(false))) and (away_mode_entity_on | bool(false)) }}"
+        sequence:
+          - repeat:
+              for_each: "{{ inputs.away_mode_boolean if (inputs.away_mode_boolean is iterable and inputs.away_mode_boolean is not string) else [] }}"
+              sequence:
+                - service: input_boolean.turn_off
+                  target:
+                    entity_id: "{{ item }}"
+                  continue_on_error: true
+
+          - choose:
+              - conditions:
+                  - "{{ info_notifications_allowed }}"
+                  - "{{ normal_notify_targets_list | length > 0 }}"
+                sequence:
+                  - repeat:
+                      for_each: "{{ normal_notify_targets_list.split(',') if (normal_notify_targets_list | trim) != '' else [] }}"
+                      sequence:
+                        - service: "{{ item }}"
+                          data:
+                            title: "🏠 Away-Mode deaktiviert"
+                            message: "Person wieder zu Hause oder Radius-Bedingung nicht mehr erfüllt."
+                          continue_on_error: true
