@@ -1089,6 +1089,34 @@ blueprint:
           default: false
           selector:
             boolean:
+        helper_input_settle_seconds:
+          name: "⏳ Debounce für Helper-Änderungen (s)"
+          description: |
+
+            Verzögerung nach Helper-Änderungen, bevor neue Sollwerte verarbeitet werden.
+            Reduziert Flattern bei schnell aufeinanderfolgenden Eingabe-Updates.
+
+          default: 30
+          selector:
+            number:
+              min: 5
+              max: 120
+              step: 5
+              unit_of_measurement: "s"
+        heartbeat_interval_minutes:
+          name: "💓 Heartbeat Intervall (min)"
+          description: |
+
+            Intervall für zyklische Neubewertung per Zeit-Trigger.
+            Präsenz-Trigger reagieren weiterhin sofort und unabhängig davon.
+
+          default: 1
+          selector:
+            number:
+              min: 1
+              max: 15
+              step: 1
+              unit_of_measurement: "min"
 
 
 mode: restart
@@ -1343,6 +1371,18 @@ action:
 
   # Continue to scheduled logic if no presence trigger matched
   - variables:
+      heartbeat_interval_minutes: !input heartbeat_interval_minutes
+      scheduled_heartbeat_due: >
+        {% set hb = heartbeat_interval_minutes | int(1) %}
+        {% set effective_hb = 1 if hb < 1 else hb %}
+        {% if trigger is defined and trigger.id is defined and trigger.id | string == 'scheduled' %}
+          {{ ((now().minute | int(0)) % effective_hb) == 0 }}
+        {% else %}
+          {{ true }}
+        {% endif %}
+  - condition: template
+    value_template: "{{ scheduled_heartbeat_due | bool(false) }}"
+  - variables:
       # ===== GROUP 1: INPUTS & HELPERS =====
       inputs:
         outdoor_temp_sensor: !input outdoor_temp_sensor
@@ -1363,6 +1403,8 @@ action:
         enable_weather_compensation: !input enable_weather_compensation
         enable_humidity_compensation: !input enable_humidity_compensation
         enable_debug_notifications: !input enable_debug_notifications
+        helper_input_settle_seconds: !input helper_input_settle_seconds
+        heartbeat_interval_minutes: !input heartbeat_interval_minutes
         master_climate: !input master_climate
         master_last_write_helper: !input master_last_write_helper
         master_comfort_input: !input master_comfort_input
@@ -1432,7 +1474,7 @@ action:
         follower2_offset: !input follower2_offset
         follower2_window: !input follower2_window
         follower2_temp_sensor: !input follower2_temp_sensor
-      helper_input_settle_seconds: 30
+      helper_input_settle_seconds: !input helper_input_settle_seconds
       trigger_id_safe: >
         {% if trigger | bool(false) is defined and trigger | bool(false) is not none and trigger.id | bool(false) is defined %}
           {{ trigger.id }}
