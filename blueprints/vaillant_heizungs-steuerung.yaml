@@ -1184,11 +1184,13 @@ action:
           - condition: trigger
             id: master_presence_on
         sequence:
+          - variables:
+              presence_helper_entity: !input master_presence_helper
           - condition: template
-            value_template: "{{ master_presence_helper != '' }}"
+            value_template: "{{ presence_helper_entity | string != '' }}"
           - service: input_boolean.turn_on
             target:
-              entity_id: "{{ master_presence_helper }}"
+              entity_id: "{{ presence_helper_entity }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Master Presence ACTIVATED (sensor ON >{{ presence_activation_delay }}min)"
@@ -1198,11 +1200,13 @@ action:
           - condition: trigger
             id: master_presence_off
         sequence:
+          - variables:
+              presence_helper_entity: !input master_presence_helper
           - condition: template
-            value_template: "{{ master_presence_helper != '' }}"
+            value_template: "{{ presence_helper_entity | string != '' }}"
           - service: input_boolean.turn_off
             target:
-              entity_id: "{{ master_presence_helper }}"
+              entity_id: "{{ presence_helper_entity }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Master Presence DEACTIVATED (sensor OFF >{{ presence_deactivation_delay }}min)"
@@ -1212,11 +1216,13 @@ action:
           - condition: trigger
             id: room2_presence_on
         sequence:
+          - variables:
+              presence_helper_entity: !input room2_presence_helper
           - condition: template
-            value_template: "{{ room2_presence_helper != '' }}"
+            value_template: "{{ presence_helper_entity | string != '' }}"
           - service: input_boolean.turn_on
             target:
-              entity_id: "{{ room2_presence_helper }}"
+              entity_id: "{{ presence_helper_entity }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Room2 Presence ACTIVATED"
@@ -1226,11 +1232,13 @@ action:
           - condition: trigger
             id: room2_presence_off
         sequence:
+          - variables:
+              presence_helper_entity: !input room2_presence_helper
           - condition: template
-            value_template: "{{ room2_presence_helper != '' }}"
+            value_template: "{{ presence_helper_entity | string != '' }}"
           - service: input_boolean.turn_off
             target:
-              entity_id: "{{ room2_presence_helper }}"
+              entity_id: "{{ presence_helper_entity }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Room2 Presence DEACTIVATED"
@@ -1240,11 +1248,13 @@ action:
           - condition: trigger
             id: room3_presence_on
         sequence:
+          - variables:
+              presence_helper_entity: !input room3_presence_helper
           - condition: template
-            value_template: "{{ room3_presence_helper != '' }}"
+            value_template: "{{ presence_helper_entity | string != '' }}"
           - service: input_boolean.turn_on
             target:
-              entity_id: "{{ room3_presence_helper }}"
+              entity_id: "{{ presence_helper_entity }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Room3 Presence ACTIVATED"
@@ -1254,11 +1264,13 @@ action:
           - condition: trigger
             id: room3_presence_off
         sequence:
+          - variables:
+              presence_helper_entity: !input room3_presence_helper
           - condition: template
-            value_template: "{{ room3_presence_helper != '' }}"
+            value_template: "{{ presence_helper_entity | string != '' }}"
           - service: input_boolean.turn_off
             target:
-              entity_id: "{{ room3_presence_helper }}"
+              entity_id: "{{ presence_helper_entity }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Room3 Presence DEACTIVATED"
@@ -1268,11 +1280,13 @@ action:
           - condition: trigger
             id: room4_presence_on
         sequence:
+          - variables:
+              presence_helper_entity: !input room4_presence_helper
           - condition: template
-            value_template: "{{ room4_presence_helper != '' }}"
+            value_template: "{{ presence_helper_entity | string != '' }}"
           - service: input_boolean.turn_on
             target:
-              entity_id: "{{ room4_presence_helper }}"
+              entity_id: "{{ presence_helper_entity }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Room4 Presence ACTIVATED"
@@ -1282,11 +1296,13 @@ action:
           - condition: trigger
             id: room4_presence_off
         sequence:
+          - variables:
+              presence_helper_entity: !input room4_presence_helper
           - condition: template
-            value_template: "{{ room4_presence_helper != '' }}"
+            value_template: "{{ presence_helper_entity | string != '' }}"
           - service: input_boolean.turn_off
             target:
-              entity_id: "{{ room4_presence_helper }}"
+              entity_id: "{{ presence_helper_entity }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Room4 Presence DEACTIVATED"
@@ -1296,11 +1312,13 @@ action:
           - condition: trigger
             id: room5_presence_on
         sequence:
+          - variables:
+              presence_helper_entity: !input room5_presence_helper
           - condition: template
-            value_template: "{{ room5_presence_helper != '' }}"
+            value_template: "{{ presence_helper_entity | string != '' }}"
           - service: input_boolean.turn_on
             target:
-              entity_id: "{{ room5_presence_helper }}"
+              entity_id: "{{ presence_helper_entity }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Room5 Presence ACTIVATED"
@@ -1310,11 +1328,13 @@ action:
           - condition: trigger
             id: room5_presence_off
         sequence:
+          - variables:
+              presence_helper_entity: !input room5_presence_helper
           - condition: template
-            value_template: "{{ room5_presence_helper != '' }}"
+            value_template: "{{ presence_helper_entity | string != '' }}"
           - service: input_boolean.turn_off
             target:
-              entity_id: "{{ room5_presence_helper }}"
+              entity_id: "{{ presence_helper_entity }}"
           - service: system_log.write
             data:
               message: "Vaillant Blueprint: Room5 Presence DEACTIVATED"
@@ -1837,12 +1857,7 @@ action:
                 {% else %}
                   {{ false }}
                 {% endif %}
-              room2_presence: >
-                {% if inputs.room2_presence_helper | string != "" %}
-                  {{ is_state(inputs.room2_presence_helper, 'on') }}
-                {% else %}
-                  {{ false }}
-                {% endif %}
+              room2_presence: "{{ room2_presence_for_demand | bool(false) }}"
               room2_window_open: >
                 {{ (is_state(inputs.room2_window, 'on') if inputs.room2_window != '' else false) or (is_state(inputs.room2_smart_window, 'on') if inputs.room2_smart_window != '' else false) }}
               room2_comfort_temp: >
@@ -1917,12 +1932,7 @@ action:
                 {% else %}
                   {{ false }}
                 {% endif %}
-              room3_presence: >
-                {% if inputs.room3_presence_helper | string != "" %}
-                  {{ is_state(inputs.room3_presence_helper, 'on') }}
-                {% else %}
-                  {{ false }}
-                {% endif %}
+              room3_presence: "{{ room3_presence_for_demand | bool(false) }}"
               room3_window_open: >
                 {{ (is_state(inputs.room3_window, 'on') if inputs.room3_window != '' else false) or (is_state(inputs.room3_smart_window, 'on') if inputs.room3_smart_window != '' else false) }}
               room3_comfort_temp: >
@@ -2003,12 +2013,7 @@ action:
                 {% else %}
                   {{ false }}
                 {% endif %}
-              room4_presence: >
-                {% if inputs.room4_presence_helper | string != "" %}
-                  {{ is_state(inputs.room4_presence_helper, 'on') }}
-                {% else %}
-                  {{ false }}
-                {% endif %}
+              room4_presence: "{{ room4_presence_for_demand | bool(false) }}"
               room4_window_open: >
                 {{ (is_state(inputs.room4_window, 'on') if inputs.room4_window != '' else false) or (is_state(inputs.room4_smart_window, 'on') if inputs.room4_smart_window != '' else false) }}
               room4_comfort_temp: >
@@ -2089,12 +2094,7 @@ action:
                 {% else %}
                   {{ false }}
                 {% endif %}
-              room5_presence: >
-                {% if inputs.room5_presence_helper | string != "" %}
-                  {{ is_state(inputs.room5_presence_helper, 'on') }}
-                {% else %}
-                  {{ false }}
-                {% endif %}
+              room5_presence: "{{ room5_presence_for_demand | bool(false) }}"
               room5_window_open: >
                 {{ (is_state(inputs.room5_window, 'on') if inputs.room5_window != '' else false) or (is_state(inputs.room5_smart_window, 'on') if inputs.room5_smart_window != '' else false) }}
               room5_comfort_temp: >
