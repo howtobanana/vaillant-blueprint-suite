@@ -300,20 +300,6 @@ blueprint:
           selector:
             entity:
               domain: input_boolean
-        room_boost_threshold:
-          name: "🌡️ Room-Boost Schwellwert (°C)"
-          description: |
-
-            Mindestabweichung eines Raums unter Soll, ab der Boost aktiviert wird.
-            Sobald ein Raum <= 0.5 °C unter Soll liegt, wird Boost wieder deaktiviert.
-
-          default: 0.5
-          selector:
-            number:
-              min: 0.2
-              max: 2.0
-              step: 0.1
-              unit_of_measurement: "°C"
         room_boost_amount:
           name: "⚡ Room-Boost Höhe (°C)"
           description: |
@@ -379,15 +365,6 @@ blueprint:
           default: false
           selector:
             boolean:
-        follower1_name:
-          name: "📝 Follower 1 Name (opt)"
-          description: |
-
-            Optionaler Anzeigename für UI und Protokollierung von Follower-Raum 1.
-
-          default: ""
-          selector:
-            text:
         follower1_climate:
           name: "♨️ Follower 1 TRV"
           description: |
@@ -453,15 +430,6 @@ blueprint:
           default: false
           selector:
             boolean:
-        follower2_name:
-          name: "📝 Follower 2 Name (opt)"
-          description: |
-
-            Optionaler Anzeigename für UI und Protokollierung von Follower-Raum 2.
-
-          default: ""
-          selector:
-            text:
         follower2_climate:
           name: "♨️ Follower 2 TRV"
           description: |
@@ -604,16 +572,6 @@ blueprint:
             entity:
               domain: binary_sensor
               device_class: window
-        room2_smart_window:
-          name: "🧠 Smart-Fenster (opt)"
-          description: |
-
-            Optionaler virtueller Fenstersensor in Raum 2. Wird mit Hardwarekontakt logisch ODER verknüpft.
-
-          default: ""
-          selector:
-            entity:
-              domain: binary_sensor
         room2_temp_sensor:
           name: "🌡️ Temperatursensor"
           description: |
@@ -721,16 +679,6 @@ blueprint:
             entity:
               domain: binary_sensor
               device_class: window
-        room3_smart_window:
-          name: "🧠 Smart-Fenster (opt)"
-          description: |
-
-            Optionaler virtueller Fenstersensor in Raum 3. Wird mit Hardwarekontakt logisch ODER verknüpft.
-
-          default: ""
-          selector:
-            entity:
-              domain: binary_sensor
         room3_temp_sensor:
           name: "🌡️ Temperatursensor"
           description: |
@@ -838,16 +786,6 @@ blueprint:
             entity:
               domain: binary_sensor
               device_class: window
-        room4_smart_window:
-          name: "🧠 Smart-Fenster (opt)"
-          description: |
-
-            Optionaler virtueller Fenstersensor in Raum 4. Wird mit Hardwarekontakt logisch ODER verknüpft.
-
-          default: ""
-          selector:
-            entity:
-              domain: binary_sensor
         room4_temp_sensor:
           name: "🌡️ Temperatursensor"
           description: |
@@ -955,16 +893,6 @@ blueprint:
             entity:
               domain: binary_sensor
               device_class: window
-        room5_smart_window:
-          name: "🧠 Smart-Fenster (opt)"
-          description: |
-
-            Optionaler virtueller Fenstersensor in Raum 5. Wird mit Hardwarekontakt logisch ODER verknüpft.
-
-          default: ""
-          selector:
-            entity:
-              domain: binary_sensor
         room5_temp_sensor:
           name: "🌡️ Temperatursensor"
           description: |
@@ -1024,18 +952,19 @@ blueprint:
               step: 0.5
               unit_of_measurement: "°C"
         window_heat_delay:
-          name: "⏱️ Fenster-Delay (min)"
+          name: "⏱️ Fenster-Delay (s)"
           description: |
 
-            Fallback-Zeitlimit bei offenem Fenster bis zur Sicherheitsabsenkung.
+            Verzögerung für Open-Window-Mode in Sekunden.
+            Erst wenn ein Fenster so lange durchgehend offen ist, wird abgesenkt.
 
-          default: 15
+          default: 30
           selector:
             number:
-              min: 5
-              max: 30
+              min: 10
+              max: 300
               step: 5
-              unit_of_measurement: "min"
+              unit_of_measurement: "s"
         smart_drop_threshold:
           name: "📉 Smart-Drop Schwelle (°C)"
           description: |
@@ -1121,6 +1050,15 @@ blueprint:
 
 mode: restart
 
+trigger_variables:
+  tv_master_window: !input master_smart_window
+  tv_room2_window: !input room2_window
+  tv_room3_window: !input room3_window
+  tv_room4_window: !input room4_window
+  tv_room5_window: !input room5_window
+  tv_follower1_window: !input follower1_window
+  tv_follower2_window: !input follower2_window
+
 trigger:
   # ============================================
   # PRESENCE TRIGGERS
@@ -1185,6 +1123,80 @@ trigger:
     for:
       minutes: !input presence_deactivation_delay
     id: room5_presence_off
+
+  # ============================================
+  # WINDOW TRIGGERS (30s OPEN-WINDOW MODE)
+  # ============================================
+  - platform: template
+    value_template: >
+      {{ tv_master_window | string != '' and is_state(tv_master_window, 'on') }}
+    for:
+      seconds: !input window_heat_delay
+    id: master_window_open_30s
+  - platform: template
+    value_template: >
+      {{ tv_master_window | string != '' and is_state(tv_master_window, 'off') }}
+    id: master_window_closed
+  - platform: template
+    value_template: >
+      {{ (tv_room2_window | string != '') and is_state(tv_room2_window, 'on') }}
+    for:
+      seconds: !input window_heat_delay
+    id: room2_window_open_30s
+  - platform: template
+    value_template: >
+      {{ (tv_room2_window | string != '') and is_state(tv_room2_window, 'off') }}
+    id: room2_window_closed
+  - platform: template
+    value_template: >
+      {{ (tv_room3_window | string != '') and is_state(tv_room3_window, 'on') }}
+    for:
+      seconds: !input window_heat_delay
+    id: room3_window_open_30s
+  - platform: template
+    value_template: >
+      {{ (tv_room3_window | string != '') and is_state(tv_room3_window, 'off') }}
+    id: room3_window_closed
+  - platform: template
+    value_template: >
+      {{ (tv_room4_window | string != '') and is_state(tv_room4_window, 'on') }}
+    for:
+      seconds: !input window_heat_delay
+    id: room4_window_open_30s
+  - platform: template
+    value_template: >
+      {{ (tv_room4_window | string != '') and is_state(tv_room4_window, 'off') }}
+    id: room4_window_closed
+  - platform: template
+    value_template: >
+      {{ (tv_room5_window | string != '') and is_state(tv_room5_window, 'on') }}
+    for:
+      seconds: !input window_heat_delay
+    id: room5_window_open_30s
+  - platform: template
+    value_template: >
+      {{ (tv_room5_window | string != '') and is_state(tv_room5_window, 'off') }}
+    id: room5_window_closed
+  - platform: template
+    value_template: >
+      {{ tv_follower1_window | string != '' and is_state(tv_follower1_window, 'on') }}
+    for:
+      seconds: !input window_heat_delay
+    id: follower1_window_open_30s
+  - platform: template
+    value_template: >
+      {{ tv_follower1_window | string != '' and is_state(tv_follower1_window, 'off') }}
+    id: follower1_window_closed
+  - platform: template
+    value_template: >
+      {{ tv_follower2_window | string != '' and is_state(tv_follower2_window, 'on') }}
+    for:
+      seconds: !input window_heat_delay
+    id: follower2_window_open_30s
+  - platform: template
+    value_template: >
+      {{ tv_follower2_window | string != '' and is_state(tv_follower2_window, 'off') }}
+    id: follower2_window_closed
 
   # ============================================
   # SCHEDULED TRIGGER (for temp logic)
@@ -1417,7 +1429,6 @@ action:
         enable_master_presence_priority: !input enable_master_presence_priority
         master_presence_priority_helper: !input master_presence_priority_helper
         enable_room_boost: !input enable_room_boost
-        room_boost_threshold: !input room_boost_threshold
         room_boost_amount: !input room_boost_amount
         master_smart_window: !input master_smart_window
         master_temp_sensor: !input master_temp_sensor
@@ -1430,7 +1441,6 @@ action:
         room2_presence_sensors: !input room2_presence_sensors
         room2_presence_helper: !input room2_presence_helper
         room2_window: !input room2_window
-        room2_smart_window: !input room2_smart_window
         room2_temp_sensor: !input room2_temp_sensor
         room3_enabled: !input room3_enabled
         room3_climate: !input room3_climate
@@ -1440,7 +1450,6 @@ action:
         room3_presence_sensors: !input room3_presence_sensors
         room3_presence_helper: !input room3_presence_helper
         room3_window: !input room3_window
-        room3_smart_window: !input room3_smart_window
         room3_temp_sensor: !input room3_temp_sensor
         room4_enabled: !input room4_enabled
         room4_climate: !input room4_climate
@@ -1450,7 +1459,6 @@ action:
         room4_presence_sensors: !input room4_presence_sensors
         room4_presence_helper: !input room4_presence_helper
         room4_window: !input room4_window
-        room4_smart_window: !input room4_smart_window
         room4_temp_sensor: !input room4_temp_sensor
         room5_enabled: !input room5_enabled
         room5_climate: !input room5_climate
@@ -1460,16 +1468,13 @@ action:
         room5_presence_sensors: !input room5_presence_sensors
         room5_presence_helper: !input room5_presence_helper
         room5_window: !input room5_window
-        room5_smart_window: !input room5_smart_window
         room5_temp_sensor: !input room5_temp_sensor
         follower1_enabled: !input follower1_enabled
-        follower1_name: !input follower1_name
         follower1_climate: !input follower1_climate
         follower1_offset: !input follower1_offset
         follower1_window: !input follower1_window
         follower1_temp_sensor: !input follower1_temp_sensor
         follower2_enabled: !input follower2_enabled
-        follower2_name: !input follower2_name
         follower2_climate: !input follower2_climate
         follower2_offset: !input follower2_offset
         follower2_window: !input follower2_window
@@ -1603,66 +1608,52 @@ action:
         {{ is_state(inputs.master_smart_window, 'on') if inputs.master_smart_window != '' else false }}
       master_window_open_too_long: >
         {% if master_window_sensor_configured | bool(false) and (master_window_open | bool(false)) %}
-          {% if inputs.master_smart_window | string != '' and is_state(inputs.master_smart_window, 'on') %}
-            {% set win_state = expand([inputs.master_smart_window]) | first %}
+          {% set now_ts = as_timestamp(now()) | float(0) %}
+          {% set sw = expand([inputs.master_smart_window]) | first %}
+          {% set delay_s = inputs.window_heat_delay | float(30) %}
+          {% if sw | bool(false) is not none and sw.last_changed | bool(false) is defined and sw.last_changed | bool(false) is not none %}
+            {% set opened_ts = as_timestamp(sw.last_changed, now_ts) | float(now_ts) %}
+            {{ (now_ts - opened_ts) >= delay_s }}
           {% else %}
-            {% set win_state = none %}
+            {{ false }}
           {% endif %}
-          {% set now_ts = as_timestamp(now()) %}
-          {% if win_state | bool(false) is not none and win_state.last_changed | bool(false) is defined and win_state.last_changed | bool(false) is not none %}
-            {% set opened_ts = as_timestamp(win_state.last_changed, now_ts) %}
-            {% set timer_expired = (now_ts - opened_ts) >= ((inputs.window_heat_delay | float(0)) * 60) %}
-          {% else %}
-            {% set timer_expired = false %}
-          {% endif %}
-          {% if inputs.master_temp_sensor | string != '' %}
-            {% if inputs.master_climate | string != '' %}
-              {% set current_temp = states(inputs.master_temp_sensor) | float(state_attr(inputs.master_climate, 'current_temperature') | float(21)) %}
-            {% else %}
-              {% set current_temp = states(inputs.master_temp_sensor) | float(21) %}
-            {% endif %}
-          {% elif inputs.master_climate | string != '' %}
-            {% set current_temp = state_attr(inputs.master_climate, 'current_temperature') | float(21) %}
-          {% else %}
-            {% set current_temp = 21 %}
-          {% endif %}
-          {% if inputs.master_climate | string != '' %}
-            {% set target_temp = state_attr(inputs.master_climate, 'temperature') | float(21) %}
-          {% else %}
-            {% set target_temp = master_target_temp | float(21) %}
-          {% endif %}
-          {% set drop_threshold = inputs.smart_drop_threshold | float(2.0) %}
-          {% set temp_dropped = (drop_threshold <= 0) or (current_temp < (target_temp - drop_threshold)) %}
-          {{ temp_dropped or timer_expired }}
         {% else %}
           {{ false }}
         {% endif %}
+      master_rapid_temp_drop: >
+        {% if not (master_window_open | bool(false)) %}
+          {{ false }}
+        {% elif inputs.master_temp_sensor | string != '' %}
+          {% if inputs.master_climate | string != '' %}
+            {% set current_temp = states(inputs.master_temp_sensor) | float(state_attr(inputs.master_climate, 'current_temperature') | float(21)) %}
+          {% else %}
+            {% set current_temp = states(inputs.master_temp_sensor) | float(21) %}
+          {% endif %}
+        {% elif inputs.master_climate | string != '' %}
+          {% set current_temp = state_attr(inputs.master_climate, 'current_temperature') | float(21) %}
+        {% else %}
+          {% set current_temp = 21 %}
+        {% endif %}
+        {% set target_temp = master_target_temp | float(21) %}
+        {% set drop_threshold = inputs.smart_drop_threshold | float(2.0) %}
+        {{ current_temp <= (target_temp - drop_threshold) }}
       master_window_recently_closed: >
         {% if not (master_window_sensor_configured | bool(false)) %}
           {{ false }}
-        {% elif trigger | bool(false) is defined and trigger | bool(false) is not none and trigger.id | bool(false) is defined and trigger.id | string == 'master_smart_window_change' %}
-          {% if trigger.to_state | bool(false) is defined and trigger.to_state | bool(false) is not none and trigger.from_state | bool(false) is defined and trigger.from_state | bool(false) is not none %}
-            {{ (trigger.from_state.state == 'on') and (trigger.to_state.state == 'off') }}
-          {% else %}
-            {% set now_ts = as_timestamp(now(), 0) %}
-            {% set ns = namespace(last_change_ts=0) %}
-            {% if inputs.master_smart_window | string != '' and is_state(inputs.master_smart_window, 'off') %}
-              {% set sw = expand([inputs.master_smart_window]) | first %}
-              {% if sw | bool(false) is not none and sw.last_changed | bool(false) is defined and sw.last_changed | bool(false) is not none %}
-                {% set sw_ts = as_timestamp(sw.last_changed, 0) | float(0) %}
-                {% if sw_ts | float(0) > 946684800 and sw_ts | float(0) <= now_ts | float(0) %}
-                  {% set ns.last_change_ts = [ns.last_change_ts, sw_ts] | max %}
-                {% endif %}
-              {% endif %}
-            {% endif %}
-            {% if ns.last_change_ts | float(0) > 0 %}
-              {{ (now_ts - ns.last_change_ts) < ((inputs.window_heat_delay | float(0)) * 60) }}
-            {% else %}
-              {{ false }}
-            {% endif %}
-          {% endif %}
-        {% else %}
+        {% elif trigger | bool(false) is defined and trigger | bool(false) is not none and trigger.id | bool(false) is defined and trigger.id | string == 'master_window_closed' %}
+          {{ true }}
+        {% elif master_window_open | bool(false) %}
           {{ false }}
+        {% else %}
+          {% set now_ts = as_timestamp(now(), 0) %}
+          {% set delay_s = inputs.window_heat_delay | float(30) %}
+          {% set sw = expand([inputs.master_smart_window]) | first %}
+          {% if sw | bool(false) is not none and sw.last_changed | bool(false) is defined and sw.last_changed | bool(false) is not none %}
+            {% set sw_ts = as_timestamp(sw.last_changed, 0) | float(0) %}
+            {{ (now_ts - sw_ts) < delay_s }}
+          {% else %}
+            {{ false }}
+          {% endif %}
         {% endif %}
 
       # ===== GROUP 3: DEMAND CALCULATION =====
@@ -1855,9 +1846,8 @@ action:
         {% else %}
           {{ false }}
         {% endif %}
-      window_reheat_blocked: "{{ (master_window_recently_closed | bool(false)) and (outdoor_temp_valid | bool(false)) and ((outdoor_temp | float(0)) >= 5) }}"
       master_target_final: >
-        {% if master_window_open_too_long | bool(false) or window_reheat_blocked | bool(false) %}
+        {% if master_rapid_temp_drop | bool(false) %}
           {{ inputs.min_trv_temp }}
         {% else %}
           {{ master_target_with_humidity }}
@@ -1901,7 +1891,21 @@ action:
                 {% endif %}
               room2_presence: "{{ room2_presence_for_demand | bool(false) }}"
               room2_window_open: >
-                {{ (is_state(inputs.room2_window, 'on') if inputs.room2_window != '' else false) or (is_state(inputs.room2_smart_window, 'on') if inputs.room2_smart_window != '' else false) }}
+                {{ is_state(inputs.room2_window, 'on') if inputs.room2_window != '' else false }}
+              room2_window_open_too_long: >
+                {% set now_ts = as_timestamp(now()) | float(0) %}
+                {% set delay_s = inputs.window_heat_delay | float(30) %}
+                {% set ns = namespace(active=false) %}
+                {% if inputs.room2_window | string != '' and is_state(inputs.room2_window, 'on') %}
+                  {% set w = expand([inputs.room2_window]) | first %}
+                  {% if w | bool(false) is not none and w.last_changed | bool(false) is defined and w.last_changed | bool(false) is not none %}
+                    {% set open_ts = as_timestamp(w.last_changed, now_ts) | float(now_ts) %}
+                    {% if (now_ts - open_ts) >= delay_s %}
+                      {% set ns.active = true %}
+                    {% endif %}
+                  {% endif %}
+                {% endif %}
+                {{ ns.active | bool(false) }}
               room2_comfort_temp: >
                 {% if inputs.room2_comfort_input | string != "" %}
                   {{ states(inputs.room2_comfort_input) | float(inputs.room2_comfort_fixed) }}
@@ -1919,7 +1923,7 @@ action:
                   {{ eco_temp }}
                 {% endif %}
               room2_final_temp: >
-                {% if room2_window_open | bool(false) %}
+                {% if room2_window_open_too_long | bool(false) %}
                   {{ inputs.min_trv_temp }}
                 {% elif summer_mode | bool(false) and not (room2_schedule_active | bool(false) or room2_presence | bool(false) or (helper_input_trigger | bool(false) and helper_input_trigger_entity | string == inputs.room2_comfort_input | string)) %}
                   {{ inputs.min_trv_temp }}
@@ -1976,7 +1980,21 @@ action:
                 {% endif %}
               room3_presence: "{{ room3_presence_for_demand | bool(false) }}"
               room3_window_open: >
-                {{ (is_state(inputs.room3_window, 'on') if inputs.room3_window != '' else false) or (is_state(inputs.room3_smart_window, 'on') if inputs.room3_smart_window != '' else false) }}
+                {{ is_state(inputs.room3_window, 'on') if inputs.room3_window != '' else false }}
+              room3_window_open_too_long: >
+                {% set now_ts = as_timestamp(now()) | float(0) %}
+                {% set delay_s = inputs.window_heat_delay | float(30) %}
+                {% set ns = namespace(active=false) %}
+                {% if inputs.room3_window | string != '' and is_state(inputs.room3_window, 'on') %}
+                  {% set w = expand([inputs.room3_window]) | first %}
+                  {% if w | bool(false) is not none and w.last_changed | bool(false) is defined and w.last_changed | bool(false) is not none %}
+                    {% set open_ts = as_timestamp(w.last_changed, now_ts) | float(now_ts) %}
+                    {% if (now_ts - open_ts) >= delay_s %}
+                      {% set ns.active = true %}
+                    {% endif %}
+                  {% endif %}
+                {% endif %}
+                {{ ns.active | bool(false) }}
               room3_comfort_temp: >
                 {% if inputs.room3_comfort_input | string != "" %}
                   {{ states(inputs.room3_comfort_input) | float(inputs.room3_comfort_fixed) }}
@@ -1994,7 +2012,7 @@ action:
                   {{ eco_temp }}
                 {% endif %}
               room3_final_temp: >
-                {% if room3_window_open | bool(false) %}
+                {% if room3_window_open_too_long | bool(false) %}
                   {{ inputs.min_trv_temp }}
                 {% elif summer_mode | bool(false) and not (room3_schedule_active | bool(false) or room3_presence | bool(false) or (helper_input_trigger | bool(false) and helper_input_trigger_entity | string == inputs.room3_comfort_input | string)) %}
                   {{ inputs.min_trv_temp }}
@@ -2057,7 +2075,21 @@ action:
                 {% endif %}
               room4_presence: "{{ room4_presence_for_demand | bool(false) }}"
               room4_window_open: >
-                {{ (is_state(inputs.room4_window, 'on') if inputs.room4_window != '' else false) or (is_state(inputs.room4_smart_window, 'on') if inputs.room4_smart_window != '' else false) }}
+                {{ is_state(inputs.room4_window, 'on') if inputs.room4_window != '' else false }}
+              room4_window_open_too_long: >
+                {% set now_ts = as_timestamp(now()) | float(0) %}
+                {% set delay_s = inputs.window_heat_delay | float(30) %}
+                {% set ns = namespace(active=false) %}
+                {% if inputs.room4_window | string != '' and is_state(inputs.room4_window, 'on') %}
+                  {% set w = expand([inputs.room4_window]) | first %}
+                  {% if w | bool(false) is not none and w.last_changed | bool(false) is defined and w.last_changed | bool(false) is not none %}
+                    {% set open_ts = as_timestamp(w.last_changed, now_ts) | float(now_ts) %}
+                    {% if (now_ts - open_ts) >= delay_s %}
+                      {% set ns.active = true %}
+                    {% endif %}
+                  {% endif %}
+                {% endif %}
+                {{ ns.active | bool(false) }}
               room4_comfort_temp: >
                 {% if inputs.room4_comfort_input | string != "" %}
                   {{ states(inputs.room4_comfort_input) | float(inputs.room4_comfort_fixed) }}
@@ -2075,7 +2107,7 @@ action:
                   {{ eco_temp }}
                 {% endif %}
               room4_final_temp: >
-                {% if room4_window_open | bool(false) %}
+                {% if room4_window_open_too_long | bool(false) %}
                   {{ inputs.min_trv_temp }}
                 {% elif summer_mode | bool(false) and not (room4_schedule_active | bool(false) or room4_presence | bool(false) or (helper_input_trigger | bool(false) and helper_input_trigger_entity | string == inputs.room4_comfort_input | string)) %}
                   {{ inputs.min_trv_temp }}
@@ -2138,7 +2170,21 @@ action:
                 {% endif %}
               room5_presence: "{{ room5_presence_for_demand | bool(false) }}"
               room5_window_open: >
-                {{ (is_state(inputs.room5_window, 'on') if inputs.room5_window != '' else false) or (is_state(inputs.room5_smart_window, 'on') if inputs.room5_smart_window != '' else false) }}
+                {{ is_state(inputs.room5_window, 'on') if inputs.room5_window != '' else false }}
+              room5_window_open_too_long: >
+                {% set now_ts = as_timestamp(now()) | float(0) %}
+                {% set delay_s = inputs.window_heat_delay | float(30) %}
+                {% set ns = namespace(active=false) %}
+                {% if inputs.room5_window | string != '' and is_state(inputs.room5_window, 'on') %}
+                  {% set w = expand([inputs.room5_window]) | first %}
+                  {% if w | bool(false) is not none and w.last_changed | bool(false) is defined and w.last_changed | bool(false) is not none %}
+                    {% set open_ts = as_timestamp(w.last_changed, now_ts) | float(now_ts) %}
+                    {% if (now_ts - open_ts) >= delay_s %}
+                      {% set ns.active = true %}
+                    {% endif %}
+                  {% endif %}
+                {% endif %}
+                {{ ns.active | bool(false) }}
               room5_comfort_temp: >
                 {% if inputs.room5_comfort_input | string != "" %}
                   {{ states(inputs.room5_comfort_input) | float(inputs.room5_comfort_fixed) }}
@@ -2156,7 +2202,7 @@ action:
                   {{ eco_temp }}
                 {% endif %}
               room5_final_temp: >
-                {% if room5_window_open | bool(false) %}
+                {% if room5_window_open_too_long | bool(false) %}
                   {{ inputs.min_trv_temp }}
                 {% elif summer_mode | bool(false) and not (room5_schedule_active | bool(false) or room5_presence | bool(false) or (helper_input_trigger | bool(false) and helper_input_trigger_entity | string == inputs.room5_comfort_input | string)) %}
                   {{ inputs.min_trv_temp }}
@@ -2213,11 +2259,25 @@ action:
           - variables:
               follower1_window_open: >
                 {{ (is_state(inputs.follower1_window, 'on') if inputs.follower1_window != '' else false) }}
+              follower1_window_open_too_long: >
+                {% if inputs.follower1_window | string != '' and is_state(inputs.follower1_window, 'on') %}
+                  {% set now_ts = as_timestamp(now()) | float(0) %}
+                  {% set delay_s = inputs.window_heat_delay | float(30) %}
+                  {% set fw = expand([inputs.follower1_window]) | first %}
+                  {% if fw | bool(false) is not none and fw.last_changed | bool(false) is defined and fw.last_changed | bool(false) is not none %}
+                    {% set opened_ts = as_timestamp(fw.last_changed, now_ts) | float(now_ts) %}
+                    {{ (now_ts - opened_ts) >= delay_s }}
+                  {% else %}
+                    {{ false }}
+                  {% endif %}
+                {% else %}
+                  {{ false }}
+                {% endif %}
               follower1_target_temp: >
                 {% set raw_target = (master_target_final | float(inputs.min_trv_temp)) + (inputs.follower1_offset | float(-2.0)) %}
                 {{ [inputs.min_trv_temp | float(12), raw_target] | max }}
               follower1_final_temp: >
-                {% if follower1_window_open | bool(false) %}
+                {% if follower1_window_open_too_long | bool(false) %}
                   {{ inputs.min_trv_temp }}
                 {% elif summer_mode | bool(false) and not (master_schedule_active | bool(false) or master_presence_detected | bool(false)) %}
                   {{ inputs.min_trv_temp }}
@@ -2265,11 +2325,25 @@ action:
           - variables:
               follower2_window_open: >
                 {{ (is_state(inputs.follower2_window, 'on') if inputs.follower2_window != '' else false) }}
+              follower2_window_open_too_long: >
+                {% if inputs.follower2_window | string != '' and is_state(inputs.follower2_window, 'on') %}
+                  {% set now_ts = as_timestamp(now()) | float(0) %}
+                  {% set delay_s = inputs.window_heat_delay | float(30) %}
+                  {% set fw = expand([inputs.follower2_window]) | first %}
+                  {% if fw | bool(false) is not none and fw.last_changed | bool(false) is defined and fw.last_changed | bool(false) is not none %}
+                    {% set opened_ts = as_timestamp(fw.last_changed, now_ts) | float(now_ts) %}
+                    {{ (now_ts - opened_ts) >= delay_s }}
+                  {% else %}
+                    {{ false }}
+                  {% endif %}
+                {% else %}
+                  {{ false }}
+                {% endif %}
               follower2_target_temp: >
                 {% set raw_target = (master_target_final | float(inputs.min_trv_temp)) + (inputs.follower2_offset | float(-2.0)) %}
                 {{ [inputs.min_trv_temp | float(12), raw_target] | max }}
               follower2_final_temp: >
-                {% if follower2_window_open | bool(false) %}
+                {% if follower2_window_open_too_long | bool(false) %}
                   {{ inputs.min_trv_temp }}
                 {% elif summer_mode | bool(false) and not (master_schedule_active | bool(false) or master_presence_detected | bool(false)) %}
                   {{ inputs.min_trv_temp }}
@@ -2335,14 +2409,8 @@ action:
               room5_schedule_active: "{{ room5_schedule_active | default(false) }}"
               room5_presence: "{{ room5_presence | default(false) }}"
               # === Continue with existing variables ===
-              room_window_trigger_event: >
-                {% if trigger | bool(false) is defined and trigger | bool(false) is not none and trigger.id | bool(false) is defined %}
-                  {{ trigger.id in ['room2_window_change', 'room3_window_change', 'room4_window_change', 'room5_window_change'] }}
-                {% else %}
-                  {{ false }}
-                {% endif %}
               master_forced_min_active: >
-                {{ (master_window_open_too_long | bool(false)) or (window_reheat_blocked | bool(false)) }}
+                {{ master_rapid_temp_drop | bool(false) }}
               away_mode_active_effective: >
                 {{ (away_mode_should_be_active | bool(false)) or (away_mode_entity_on | bool(false)) }}
               master_safety_floor: >
@@ -2442,8 +2510,18 @@ action:
               # Room boost detection with anti-overshoot hysteresis
               room_boost_enabled_effective: >
                 {{ (inputs.enable_room_boost | bool(false)) and (inputs.room_boost_amount | float(0) > 0) and (not (master_forced_min_active | bool(false))) and (not (away_mode_active_effective | bool(false))) }}
+              master_boost_participates: >
+                {{ (master_schedule_active | bool(false)) or (master_presence_detected | bool(false)) }}
+              room2_boost_participates: >
+                {{ (inputs.room2_enabled | bool(false)) and ((room2_schedule_active_for_demand | bool(false)) or (room2_presence_for_demand | bool(false))) }}
+              room3_boost_participates: >
+                {{ (inputs.room3_enabled | bool(false)) and ((room3_schedule_active_for_demand | bool(false)) or (room3_presence_for_demand | bool(false))) }}
+              room4_boost_participates: >
+                {{ (inputs.room4_enabled | bool(false)) and ((room4_schedule_active_for_demand | bool(false)) or (room4_presence_for_demand | bool(false))) }}
+              room5_boost_participates: >
+                {{ (inputs.room5_enabled | bool(false)) and ((room5_schedule_active_for_demand | bool(false)) or (room5_presence_for_demand | bool(false))) }}
               master_needs_boost: >
-                {% if room_boost_enabled_effective | bool(false) %}
+                {% if room_boost_enabled_effective | bool(false) and (master_boost_participates | bool(false)) %}
                   {% if inputs.master_climate | string != '' %}
                     {% set fallback_current = state_attr(inputs.master_climate, 'current_temperature') | float(21) %}
                   {% else %}
@@ -2463,7 +2541,7 @@ action:
                   {{ false }}
                 {% endif %}
               master_boost_deactivate: >
-                {% if room_boost_enabled_effective | bool(false) %}
+                {% if room_boost_enabled_effective | bool(false) and (master_boost_participates | bool(false)) %}
                   {% if inputs.master_climate | string != '' %}
                     {% set fallback_current = state_attr(inputs.master_climate, 'current_temperature') | float(21) %}
                   {% else %}
@@ -2482,7 +2560,7 @@ action:
                   {{ true }}
                 {% endif %}
               room2_needs_boost: >
-                {% if room_boost_enabled_effective | bool(false) and (inputs.room2_enabled | bool(false)) and inputs.room2_temp_sensor | string != '' %}
+                {% if room_boost_enabled_effective | bool(false) and (room2_boost_participates | bool(false)) and inputs.room2_temp_sensor | string != '' %}
                   {% set room_raw = states(inputs.room2_temp_sensor) %}
                   {% if room_raw | string not in ['unknown', 'unavailable', 'none', ''] %}
                     {% set room_current = room_raw | float(0) %}
@@ -2497,7 +2575,7 @@ action:
                   {{ false }}
                 {% endif %}
               room2_boost_deactivate: >
-                {% if room_boost_enabled_effective | bool(false) and (inputs.room2_enabled | bool(false)) and inputs.room2_temp_sensor | string != '' %}
+                {% if room_boost_enabled_effective | bool(false) and (room2_boost_participates | bool(false)) and inputs.room2_temp_sensor | string != '' %}
                   {% set room_raw = states(inputs.room2_temp_sensor) %}
                   {% if room_raw | string not in ['unknown', 'unavailable', 'none', ''] %}
                     {% set room_current = room_raw | float(0) %}
@@ -2512,7 +2590,7 @@ action:
                 {% endif %}
               room3_needs_boost: >
                 {# USE ROBUST CHECK to match room3_demand logic #}
-                {% if room_boost_enabled_effective | bool(false) and ((inputs.room3_enabled | string | lower) in ['true', 'on', '1']) and inputs.room3_temp_sensor | string != '' %}
+                {% if room_boost_enabled_effective | bool(false) and (room3_boost_participates | bool(false)) and inputs.room3_temp_sensor | string != '' %}
                   {% set room_raw = states(inputs.room3_temp_sensor) %}
                   {% if room_raw | string not in ['unknown', 'unavailable', 'none', ''] %}
                     {% set room_current = room_raw | float(0) %}
@@ -2527,7 +2605,7 @@ action:
                   {{ false }}
                 {% endif %}
               room3_boost_deactivate: >
-                {% if room_boost_enabled_effective | bool(false) and (inputs.room3_enabled | bool(false)) and inputs.room3_temp_sensor | string != '' %}
+                {% if room_boost_enabled_effective | bool(false) and (room3_boost_participates | bool(false)) and inputs.room3_temp_sensor | string != '' %}
                   {% set room_raw = states(inputs.room3_temp_sensor) %}
                   {% if room_raw | string not in ['unknown', 'unavailable', 'none', ''] %}
                     {% set room_current = room_raw | float(0) %}
@@ -2541,7 +2619,7 @@ action:
                   {{ true }}
                 {% endif %}
               room4_needs_boost: >
-                {% if room_boost_enabled_effective | bool(false) and (inputs.room4_enabled | bool(false)) and inputs.room4_temp_sensor | string != '' %}
+                {% if room_boost_enabled_effective | bool(false) and (room4_boost_participates | bool(false)) and inputs.room4_temp_sensor | string != '' %}
                   {% set room_raw = states(inputs.room4_temp_sensor) %}
                   {% if room_raw | string not in ['unknown', 'unavailable', 'none', ''] %}
                     {% set room_current = room_raw | float(0) %}
@@ -2556,7 +2634,7 @@ action:
                   {{ false }}
                 {% endif %}
               room4_boost_deactivate: >
-                {% if room_boost_enabled_effective | bool(false) and (inputs.room4_enabled | bool(false)) and inputs.room4_temp_sensor | string != '' %}
+                {% if room_boost_enabled_effective | bool(false) and (room4_boost_participates | bool(false)) and inputs.room4_temp_sensor | string != '' %}
                   {% set room_raw = states(inputs.room4_temp_sensor) %}
                   {% if room_raw | string not in ['unknown', 'unavailable', 'none', ''] %}
                     {% set room_current = room_raw | float(0) %}
@@ -2570,7 +2648,7 @@ action:
                   {{ true }}
                 {% endif %}
               room5_needs_boost: >
-                {% if room_boost_enabled_effective | bool(false) and (inputs.room5_enabled | bool(false)) and inputs.room5_temp_sensor | string != '' %}
+                {% if room_boost_enabled_effective | bool(false) and (room5_boost_participates | bool(false)) and inputs.room5_temp_sensor | string != '' %}
                   {% set room_raw = states(inputs.room5_temp_sensor) %}
                   {% if room_raw | string not in ['unknown', 'unavailable', 'none', ''] %}
                     {% set room_current = room_raw | float(0) %}
@@ -2585,7 +2663,7 @@ action:
                   {{ false }}
                 {% endif %}
               room5_boost_deactivate: >
-                {% if room_boost_enabled_effective | bool(false) and (inputs.room5_enabled | bool(false)) and inputs.room5_temp_sensor | string != '' %}
+                {% if room_boost_enabled_effective | bool(false) and (room5_boost_participates | bool(false)) and inputs.room5_temp_sensor | string != '' %}
                   {% set room_raw = states(inputs.room5_temp_sensor) %}
                   {% if room_raw | string not in ['unknown', 'unavailable', 'none', ''] %}
                     {% set room_current = room_raw | float(0) %}
@@ -2614,11 +2692,19 @@ action:
                   (room4_boost_deactivate | bool(true)) and
                   (room5_boost_deactivate | bool(true))
                 }}
+              master_set_now: "{{ state_attr(inputs.master_climate, 'temperature') | float(0) }}"
+              boost_latch_active_from_setpoint: >
+                {% set boost_half = (inputs.room_boost_amount | float(0)) * 0.5 %}
+                {{ (master_set_now | float(0)) >= ((master_required_target | float(0)) + boost_half) }}
+              master_boost_hold_active: >
+                {{ (boost_latch_active_from_setpoint | bool(false)) and (not (all_rooms_boost_deactivate | bool(true))) }}
               master_boost_active: >
                 {{
                   (room_boost_enabled_effective | bool(false)) and
-                  (any_room_needs_boost | bool(false)) and
-                  (not (all_rooms_boost_deactivate | bool(true)))
+                  (
+                    (any_room_needs_boost | bool(false)) or
+                    (master_boost_hold_active | bool(false))
+                  )
                 }}
               master_boost_amount: >
                 {% if master_boost_active | bool(false) %}
@@ -2630,7 +2716,6 @@ action:
                 {% set base = master_required_target | float(20) %}
                 {% set boost = (inputs.room_boost_amount | float(0)) if (master_boost_active | bool(false)) else 0 %}
                 {{ [base + boost, master_max | float(30)] | min }}
-              master_set_now: "{{ state_attr(inputs.master_climate, 'temperature') | float(0) }}"
               master_target_delta_abs: "{{ ((master_required_target_with_boost | float(0)) - (master_set_now | float(0))) | abs }}"
               master_needs_global_boost: >
                 {{ (not (away_mode_active_effective | bool(false))) and ((master_set_now | float(0)) < ((global_max_demand | float(0)) - 0.1)) }}
@@ -2676,7 +2761,7 @@ action:
               master_drop_allowed: >
                 {{ (master_needs_global_drop | bool(false)) and (master_change_cooldown_ok_step55 | bool(false)) }}
               master_write_allowed: >
-                {{ (not (room_window_trigger_event | bool(false))) and (not (master_forced_min_active | bool(false))) and ((master_raise_allowed | bool(false)) or (master_drop_allowed | bool(false))) }}
+                {{ (not (master_forced_min_active | bool(false))) and ((master_raise_allowed | bool(false)) or (master_drop_allowed | bool(false))) }}
           # ════════════════════════════════════════════════════════════
           # DEBUG LOG 3: Boost Logic
           # ════════════════════════════════════════════════════════════
