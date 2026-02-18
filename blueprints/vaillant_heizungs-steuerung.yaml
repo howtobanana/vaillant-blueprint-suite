@@ -1199,6 +1199,34 @@ trigger:
     id: follower2_window_closed
 
   # ============================================
+  # HELPER INPUT TRIGGERS (IMMEDIATE REACTION)
+  # ============================================
+  - platform: state
+    entity_id: !input eco_temp_input
+    id: eco_temp_input_change
+  - platform: state
+    entity_id: !input away_temp_input
+    id: away_temp_input_change
+  - platform: state
+    entity_id: !input master_comfort_input
+    id: master_comfort_input_change
+  - platform: state
+    entity_id: !input room2_comfort_input
+    id: room2_comfort_input_change
+  - platform: state
+    entity_id: !input room3_comfort_input
+    id: room3_comfort_input_change
+  - platform: state
+    entity_id: !input room4_comfort_input
+    id: room4_comfort_input_change
+  - platform: state
+    entity_id: !input room5_comfort_input
+    id: room5_comfort_input_change
+  - platform: state
+    entity_id: !input away_mode_boolean
+    id: awaymodechange
+
+  # ============================================
   # SCHEDULED TRIGGER (for temp logic)
   # ============================================
   - platform: time_pattern
@@ -1219,6 +1247,7 @@ action:
       room5_presence_helper: !input room5_presence_helper
       presence_activation_delay: !input presence_activation_delay
       presence_deactivation_delay: !input presence_deactivation_delay
+      enable_debug_notifications: !input enable_debug_notifications
   - choose:
       - conditions:
           - condition: trigger
@@ -1231,11 +1260,14 @@ action:
           - service: input_boolean.turn_on
             target:
               entity_id: "{{ presence_helper_entity }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Master Presence ACTIVATED (sensor ON >{{ presence_activation_delay }}min)"
-              level: info
-          - stop: ""
+          - if:
+              - condition: template
+                value_template: "{{ enable_debug_notifications | bool(false) }}"
+            then:
+              - service: system_log.write
+                data:
+                  message: "Vaillant Blueprint: Master Presence ACTIVATED (sensor ON >{{ presence_activation_delay }}min)"
+                  level: info
       - conditions:
           - condition: trigger
             id: master_presence_off
@@ -1247,11 +1279,14 @@ action:
           - service: input_boolean.turn_off
             target:
               entity_id: "{{ presence_helper_entity }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Master Presence DEACTIVATED (sensor OFF >{{ presence_deactivation_delay }}min)"
-              level: info
-          - stop: ""
+          - if:
+              - condition: template
+                value_template: "{{ enable_debug_notifications | bool(false) }}"
+            then:
+              - service: system_log.write
+                data:
+                  message: "Vaillant Blueprint: Master Presence DEACTIVATED (sensor OFF >{{ presence_deactivation_delay }}min)"
+                  level: info
       - conditions:
           - condition: trigger
             id: room2_presence_on
@@ -1263,11 +1298,14 @@ action:
           - service: input_boolean.turn_on
             target:
               entity_id: "{{ presence_helper_entity }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room2 Presence ACTIVATED"
-              level: info
-          - stop: ""
+          - if:
+              - condition: template
+                value_template: "{{ enable_debug_notifications | bool(false) }}"
+            then:
+              - service: system_log.write
+                data:
+                  message: "Vaillant Blueprint: Room2 Presence ACTIVATED"
+                  level: info
       - conditions:
           - condition: trigger
             id: room2_presence_off
@@ -1279,11 +1317,14 @@ action:
           - service: input_boolean.turn_off
             target:
               entity_id: "{{ presence_helper_entity }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room2 Presence DEACTIVATED"
-              level: info
-          - stop: ""
+          - if:
+              - condition: template
+                value_template: "{{ enable_debug_notifications | bool(false) }}"
+            then:
+              - service: system_log.write
+                data:
+                  message: "Vaillant Blueprint: Room2 Presence DEACTIVATED"
+                  level: info
       - conditions:
           - condition: trigger
             id: room3_presence_on
@@ -1295,11 +1336,14 @@ action:
           - service: input_boolean.turn_on
             target:
               entity_id: "{{ presence_helper_entity }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room3 Presence ACTIVATED"
-              level: info
-          - stop: ""
+          - if:
+              - condition: template
+                value_template: "{{ enable_debug_notifications | bool(false) }}"
+            then:
+              - service: system_log.write
+                data:
+                  message: "Vaillant Blueprint: Room3 Presence ACTIVATED"
+                  level: info
       - conditions:
           - condition: trigger
             id: room3_presence_off
@@ -1311,11 +1355,14 @@ action:
           - service: input_boolean.turn_off
             target:
               entity_id: "{{ presence_helper_entity }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room3 Presence DEACTIVATED"
-              level: info
-          - stop: ""
+          - if:
+              - condition: template
+                value_template: "{{ enable_debug_notifications | bool(false) }}"
+            then:
+              - service: system_log.write
+                data:
+                  message: "Vaillant Blueprint: Room3 Presence DEACTIVATED"
+                  level: info
       - conditions:
           - condition: trigger
             id: room4_presence_on
@@ -1327,11 +1374,14 @@ action:
           - service: input_boolean.turn_on
             target:
               entity_id: "{{ presence_helper_entity }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room4 Presence ACTIVATED"
-              level: info
-          - stop: ""
+          - if:
+              - condition: template
+                value_template: "{{ enable_debug_notifications | bool(false) }}"
+            then:
+              - service: system_log.write
+                data:
+                  message: "Vaillant Blueprint: Room4 Presence ACTIVATED"
+                  level: info
       - conditions:
           - condition: trigger
             id: room4_presence_off
@@ -1343,11 +1393,14 @@ action:
           - service: input_boolean.turn_off
             target:
               entity_id: "{{ presence_helper_entity }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room4 Presence DEACTIVATED"
-              level: info
-          - stop: ""
+          - if:
+              - condition: template
+                value_template: "{{ enable_debug_notifications | bool(false) }}"
+            then:
+              - service: system_log.write
+                data:
+                  message: "Vaillant Blueprint: Room4 Presence DEACTIVATED"
+                  level: info
       - conditions:
           - condition: trigger
             id: room5_presence_on
@@ -1359,11 +1412,14 @@ action:
           - service: input_boolean.turn_on
             target:
               entity_id: "{{ presence_helper_entity }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room5 Presence ACTIVATED"
-              level: info
-          - stop: ""
+          - if:
+              - condition: template
+                value_template: "{{ enable_debug_notifications | bool(false) }}"
+            then:
+              - service: system_log.write
+                data:
+                  message: "Vaillant Blueprint: Room5 Presence ACTIVATED"
+                  level: info
       - conditions:
           - condition: trigger
             id: room5_presence_off
@@ -1375,11 +1431,14 @@ action:
           - service: input_boolean.turn_off
             target:
               entity_id: "{{ presence_helper_entity }}"
-          - service: system_log.write
-            data:
-              message: "Vaillant Blueprint: Room5 Presence DEACTIVATED"
-              level: info
-          - stop: ""
+          - if:
+              - condition: template
+                value_template: "{{ enable_debug_notifications | bool(false) }}"
+            then:
+              - service: system_log.write
+                data:
+                  message: "Vaillant Blueprint: Room5 Presence DEACTIVATED"
+                  level: info
 
   # Continue to scheduled logic if no presence trigger matched
   - variables:
@@ -1561,12 +1620,16 @@ action:
   # ════════════════════════════════════════════════════════════
   # DEBUG LOG 1: Presence Reconciliation
   # ════════════════════════════════════════════════════════════
-  - service: system_log.write
-    continue_on_error: true
-    data:
-      message: >
-        🔍 PRESENCE RECONCILIATION | Trigger: {{ trigger.id if trigger is defined and trigger.id is defined else 'none' }} | Master: fresh={{ master_presence_fresh | bool(false) }} helper={{ is_state(inputs.master_presence_helper, 'on') if inputs.master_presence_helper != '' else 'N/A' }} | Room2: fresh={{ room2_presence_fresh | bool(false) }} helper={{ is_state(inputs.room2_presence_helper, 'on') if inputs.room2_presence_helper != '' else 'N/A' }} | Room3: fresh={{ room3_presence_fresh | bool(false) }} helper={{ is_state(inputs.room3_presence_helper, 'on') if inputs.room3_presence_helper != '' else 'N/A' }} | Room4: fresh={{ room4_presence_fresh | bool(false) }} helper={{ is_state(inputs.room4_presence_helper, 'on') if inputs.room4_presence_helper != '' else 'N/A' }} | Room5: fresh={{ room5_presence_fresh | bool(false) }} helper={{ is_state(inputs.room5_presence_helper, 'on') if inputs.room5_presence_helper != '' else 'N/A' }}
-      level: info
+  - if:
+      - condition: template
+        value_template: "{{ inputs.enable_debug_notifications | bool(false) }}"
+    then:
+      - service: system_log.write
+        continue_on_error: true
+        data:
+          message: >
+            🔍 PRESENCE RECONCILIATION | Trigger: {{ trigger.id if trigger is defined and trigger.id is defined else 'none' }} | Master: fresh={{ master_presence_fresh | bool(false) }} helper={{ is_state(inputs.master_presence_helper, 'on') if inputs.master_presence_helper != '' else 'N/A' }} | Room2: fresh={{ room2_presence_fresh | bool(false) }} helper={{ is_state(inputs.room2_presence_helper, 'on') if inputs.room2_presence_helper != '' else 'N/A' }} | Room3: fresh={{ room3_presence_fresh | bool(false) }} helper={{ is_state(inputs.room3_presence_helper, 'on') if inputs.room3_presence_helper != '' else 'N/A' }} | Room4: fresh={{ room4_presence_fresh | bool(false) }} helper={{ is_state(inputs.room4_presence_helper, 'on') if inputs.room4_presence_helper != '' else 'N/A' }} | Room5: fresh={{ room5_presence_fresh | bool(false) }} helper={{ is_state(inputs.room5_presence_helper, 'on') if inputs.room5_presence_helper != '' else 'N/A' }}
+          level: info
   - variables:
       master_presence_detected: >
         {{ master_presence_fresh | bool(false) }}
@@ -1764,12 +1827,16 @@ action:
   # ════════════════════════════════════════════════════════════
   # DEBUG LOG 2: Demand Calculation
   # ════════════════════════════════════════════════════════════
-  - service: system_log.write
-    continue_on_error: true
-    data:
-      message: >
-        💰 DEMAND CALCULATION | Master: demand={{ master_demand | float(0) }}°C presence={{ master_presence_detected | bool(false) }} comfort={{ master_comfort_temp | float(0) }}°C | Room2: demand={{ room2_demand | float(0) }}°C presence={{ room2_presence_for_demand | bool(false) }} | Room3: demand={{ room3_demand | float(0) }}°C presence={{ room3_presence_for_demand | bool(false) }} comfort={{ room3_comfort_temp_for_demand | float(0) }}°C | Room4: demand={{ room4_demand | float(0) }}°C presence={{ room4_presence_for_demand | bool(false) }} | Room5: demand={{ room5_demand | float(0) }}°C presence={{ room5_presence_for_demand | bool(false) }} | Eco={{ eco_temp | float(0) }}°C Away={{ away_temp | float(0) }}°C | GLOBAL_MAX={{ global_max_demand | float(0) }}°C
-      level: info
+  - if:
+      - condition: template
+        value_template: "{{ inputs.enable_debug_notifications | bool(false) }}"
+    then:
+      - service: system_log.write
+        continue_on_error: true
+        data:
+          message: >
+            💰 DEMAND CALCULATION | Master: demand={{ master_demand | float(0) }}°C presence={{ master_presence_detected | bool(false) }} comfort={{ master_comfort_temp | float(0) }}°C | Room2: demand={{ room2_demand | float(0) }}°C presence={{ room2_presence_for_demand | bool(false) }} | Room3: demand={{ room3_demand | float(0) }}°C presence={{ room3_presence_for_demand | bool(false) }} comfort={{ room3_comfort_temp_for_demand | float(0) }}°C | Room4: demand={{ room4_demand | float(0) }}°C presence={{ room4_presence_for_demand | bool(false) }} | Room5: demand={{ room5_demand | float(0) }}°C presence={{ room5_presence_for_demand | bool(false) }} | Eco={{ eco_temp | float(0) }}°C Away={{ away_temp | float(0) }}°C | GLOBAL_MAX={{ global_max_demand | float(0) }}°C
+          level: info
   - variables:
       # ===== GROUP 4: TARGET CALCULATION =====
       away_mode_helper_set: "{{ inputs.away_mode_boolean | length > 0 }}"
@@ -1829,25 +1896,13 @@ action:
         {% set raw = states(inputs.outdoor_temp_sensor) if outdoor_temp_sensor_configured else '' %}
         {{ (outdoor_temp_sensor_configured | bool(false)) and (raw | string not in ['unknown', 'unavailable', 'none', '']) }}
       summer_mode: >
-        {% if outdoor_temp_valid | bool(false) %}
-          {% set current_outdoor = outdoor_temp | float(0) %}
-          {% set threshold_on = inputs.summer_threshold | float(18) %}
-          {% set threshold_off = threshold_on - (inputs.summer_hysteresis | float(1.0)) %}
-          {% set master_set = state_attr(inputs.master_climate, 'temperature') | float(999) if inputs.master_climate != '' else 999 %}
-          {% set master_min = state_attr(inputs.master_climate, 'min_temp') | float(inputs.min_trv_temp | float(12)) if inputs.master_climate != '' else (inputs.min_trv_temp | float(12)) %}
-          {% set summer_state_guess = inputs.master_climate != '' and (master_set <= (master_min + 0.2)) %}
-          {% if current_outdoor | float(0) > threshold_on | float(0) %}
-            {{ true }}
-          {% elif current_outdoor | float(0) < threshold_off | float(0) %}
-            {{ false }}
-          {% else %}
-            {{ summer_state_guess }}
-          {% endif %}
+        {% if inputs.outdoor_temp_sensor | string != '' and states(inputs.outdoor_temp_sensor) | float(99) > (inputs.summer_threshold | float(18)) %}
+          {{ true }}
         {% else %}
           {{ false }}
         {% endif %}
       master_target_final: >
-        {% if master_rapid_temp_drop | bool(false) %}
+        {% if (master_rapid_temp_drop | bool(false)) or (master_window_open_too_long | bool(false)) %}
           {{ inputs.min_trv_temp }}
         {% else %}
           {{ master_target_with_humidity }}
@@ -1913,7 +1968,9 @@ action:
                   {{ inputs.room2_comfort_fixed }}
                 {% endif %}
               room2_target_temp: >
-                {% if (away_mode_should_be_active | bool(false)) or (away_mode_entity_on | bool(false)) %}
+                {% if inputs.panic_mode_enabled | string != '' and is_state(inputs.panic_mode_enabled, 'on') %}
+                  {{ inputs.room2_comfort_fixed }}
+                {% elif (away_mode_should_be_active | bool(false)) or (away_mode_entity_on | bool(false)) %}
                   {{ away_temp }}
                 {% elif helper_input_trigger | bool(false) and helper_input_trigger_entity | string == inputs.room2_comfort_input | string %}
                   {{ room2_comfort_temp }}
@@ -2002,7 +2059,9 @@ action:
                   {{ inputs.room3_comfort_fixed }}
                 {% endif %}
               room3_target_temp: >
-                {% if (away_mode_should_be_active | bool(false)) or (away_mode_entity_on | bool(false)) %}
+                {% if inputs.panic_mode_enabled | string != '' and is_state(inputs.panic_mode_enabled, 'on') %}
+                  {{ inputs.room3_comfort_fixed }}
+                {% elif (away_mode_should_be_active | bool(false)) or (away_mode_entity_on | bool(false)) %}
                   {{ away_temp }}
                 {% elif helper_input_trigger | bool(false) and helper_input_trigger_entity | string == inputs.room3_comfort_input | string %}
                   {{ room3_comfort_temp }}
@@ -2097,7 +2156,9 @@ action:
                   {{ inputs.room4_comfort_fixed }}
                 {% endif %}
               room4_target_temp: >
-                {% if (away_mode_should_be_active | bool(false)) or (away_mode_entity_on | bool(false)) %}
+                {% if inputs.panic_mode_enabled | string != '' and is_state(inputs.panic_mode_enabled, 'on') %}
+                  {{ inputs.room4_comfort_fixed }}
+                {% elif (away_mode_should_be_active | bool(false)) or (away_mode_entity_on | bool(false)) %}
                   {{ away_temp }}
                 {% elif helper_input_trigger | bool(false) and helper_input_trigger_entity | string == inputs.room4_comfort_input | string %}
                   {{ room4_comfort_temp }}
@@ -2192,7 +2253,9 @@ action:
                   {{ inputs.room5_comfort_fixed }}
                 {% endif %}
               room5_target_temp: >
-                {% if (away_mode_should_be_active | bool(false)) or (away_mode_entity_on | bool(false)) %}
+                {% if inputs.panic_mode_enabled | string != '' and is_state(inputs.panic_mode_enabled, 'on') %}
+                  {{ inputs.room5_comfort_fixed }}
+                {% elif (away_mode_should_be_active | bool(false)) or (away_mode_entity_on | bool(false)) %}
                   {{ away_temp }}
                 {% elif helper_input_trigger | bool(false) and helper_input_trigger_entity | string == inputs.room5_comfort_input | string %}
                   {{ room5_comfort_temp }}
@@ -2765,45 +2828,49 @@ action:
           # ════════════════════════════════════════════════════════════
           # DEBUG LOG 3: Boost Logic
           # ════════════════════════════════════════════════════════════
-          - service: system_log.write
-            continue_on_error: true
-            data:
-              message: >
-                🚀 BOOST LOGIC | Room3: needs_boost={{ room3_needs_boost | bool(false) }} current={{ room3_current_temp | float(0) }}°C target={{ room3_demand | float(0) }}°C delta={{ (room3_demand | float(0)) - (room3_current_temp | float(0)) }}°C | Boost: active={{ master_boost_active | bool(false) }} amount={{ inputs.room_boost_amount | float(0) }}°C threshold={{ inputs.room_boost_activation_threshold | float(0) }}°C
-              level: info
+          - if:
+              - condition: template
+                value_template: "{{ inputs.enable_debug_notifications | bool(false) }}"
+            then:
+              - service: system_log.write
+                continue_on_error: true
+                data:
+                  message: >
+                    🚀 BOOST LOGIC | Room3: needs_boost={{ room3_needs_boost | bool(false) }} current={{ room3_current_temp | float(0) }}°C target={{ room3_demand | float(0) }}°C delta={{ (room3_demand | float(0)) - (room3_current_temp | float(0)) }}°C | Boost: active={{ master_boost_active | bool(false) }} amount={{ inputs.room_boost_amount | float(0) }}°C threshold={{ inputs.room_boost_activation_threshold | float(0) }}°C
+                  level: info
           - choose:
               # PATH A (CRITICAL): forced-min writes bypass cooldown
               - conditions:
                   - "{{ master_forced_min_active | bool(false) }}"
                   - "{{ (master_target_delta_abs | float(0)) > 0.5 }}"
                 sequence:
-                  - choose:
-                      - conditions:
-                          - "{{ inputs.enable_debug_notifications | bool(false) }}"
-                        sequence:
-                          - service: persistent_notification.create
-                            data:
-                              title: "🔥 Vaillant Debug"
-                              message: |
-                                Time: {{ now().strftime('%H:%M:%S') }}
-                                
-                                Master:
-                                - Base: {{ master_base_required_target }}
-                                - Final: {{ master_required_target_with_boost }}
-                                - Boost Active: {{ master_boost_active }}
-                                
-                                {% if inputs.room2_enabled | bool(false) %}
-                                Room 2: P={{ room2_presence }} | D={{ room2_demand }} | B={{ room2_needs_boost }}
-                                {% endif %}
-                                {% if inputs.room3_enabled | bool(false) %}
-                                Room 3: P={{ room3_presence }} | D={{ room3_demand }} | B={{ room3_needs_boost }}
-                                {% endif %}
-                                {% if inputs.room4_enabled | bool(false) %}
-                                Room 4: P={{ room4_presence }} | D={{ room4_demand }} | B={{ room4_needs_boost }}
-                                {% endif %}
-                                {% if inputs.room5_enabled | bool(false) %}
-                                Room 5: P={{ room5_presence }} | D={{ room5_demand }} | B={{ room5_needs_boost }}
-                                {% endif %}
+                  - if:
+                      - condition: template
+                        value_template: "{{ inputs.enable_debug_notifications | bool(false) }}"
+                    then:
+                      - service: persistent_notification.create
+                        data:
+                          title: "🔥 Vaillant Debug"
+                          message: |
+                            Time: {{ now().strftime('%H:%M:%S') }}
+                            
+                            Master:
+                            - Base: {{ master_base_required_target }}
+                            - Final: {{ master_required_target_with_boost }}
+                            - Boost Active: {{ master_boost_active }}
+                            
+                            {% if inputs.room2_enabled | bool(false) %}
+                            Room 2: P={{ room2_presence }} | D={{ room2_demand }} | B={{ room2_needs_boost }}
+                            {% endif %}
+                            {% if inputs.room3_enabled | bool(false) %}
+                            Room 3: P={{ room3_presence }} | D={{ room3_demand }} | B={{ room3_needs_boost }}
+                            {% endif %}
+                            {% if inputs.room4_enabled | bool(false) %}
+                            Room 4: P={{ room4_presence }} | D={{ room4_demand }} | B={{ room4_needs_boost }}
+                            {% endif %}
+                            {% if inputs.room5_enabled | bool(false) %}
+                            Room 5: P={{ room5_presence }} | D={{ room5_demand }} | B={{ room5_needs_boost }}
+                            {% endif %}
                   - service: climate.set_temperature
                     target:
                       entity_id: "{{ inputs.master_climate }}"
@@ -2811,7 +2878,7 @@ action:
                       temperature: "{{ master_required_target_with_boost }}"
                     continue_on_error: true
                   - delay:
-                      seconds: 2
+                      seconds: 30
                   - condition: template
                     value_template: >
                       {{ ((state_attr(inputs.master_climate, 'temperature') | float(0)) - (master_required_target_with_boost | float(0))) | abs <= 0.11 }}
@@ -2827,33 +2894,33 @@ action:
                   - "{{ (master_needs_global_boost | bool(false)) or (master_significant_drop | bool(false)) }}"
                   - "{{ (master_target_delta_abs | float(0)) > 0.1 }}"
                 sequence:
-                  - choose:
-                      - conditions:
-                          - "{{ inputs.enable_debug_notifications | bool(false) }}"
-                        sequence:
-                          - service: persistent_notification.create
-                            data:
-                              title: "🔥 Vaillant Debug"
-                              message: |
-                                Time: {{ now().strftime('%H:%M:%S') }}
-                                
-                                Master:
-                                - Base: {{ master_base_required_target }}
-                                - Final: {{ master_required_target_with_boost }}
-                                - Boost Active: {{ master_boost_active }}
-                                
-                                {% if inputs.room2_enabled | bool(false) %}
-                                Room 2: P={{ room2_presence }} | D={{ room2_demand }} | B={{ room2_needs_boost }}
-                                {% endif %}
-                                {% if inputs.room3_enabled | bool(false) %}
-                                Room 3: P={{ room3_presence }} | D={{ room3_demand }} | B={{ room3_needs_boost }}
-                                {% endif %}
-                                {% if inputs.room4_enabled | bool(false) %}
-                                Room 4: P={{ room4_presence }} | D={{ room4_demand }} | B={{ room4_needs_boost }}
-                                {% endif %}
-                                {% if inputs.room5_enabled | bool(false) %}
-                                Room 5: P={{ room5_presence }} | D={{ room5_demand }} | B={{ room5_needs_boost }}
-                                {% endif %}
+                  - if:
+                      - condition: template
+                        value_template: "{{ inputs.enable_debug_notifications | bool(false) }}"
+                    then:
+                      - service: persistent_notification.create
+                        data:
+                          title: "🔥 Vaillant Debug"
+                          message: |
+                            Time: {{ now().strftime('%H:%M:%S') }}
+                            
+                            Master:
+                            - Base: {{ master_base_required_target }}
+                            - Final: {{ master_required_target_with_boost }}
+                            - Boost Active: {{ master_boost_active }}
+                            
+                            {% if inputs.room2_enabled | bool(false) %}
+                            Room 2: P={{ room2_presence }} | D={{ room2_demand }} | B={{ room2_needs_boost }}
+                            {% endif %}
+                            {% if inputs.room3_enabled | bool(false) %}
+                            Room 3: P={{ room3_presence }} | D={{ room3_demand }} | B={{ room3_needs_boost }}
+                            {% endif %}
+                            {% if inputs.room4_enabled | bool(false) %}
+                            Room 4: P={{ room4_presence }} | D={{ room4_demand }} | B={{ room4_needs_boost }}
+                            {% endif %}
+                            {% if inputs.room5_enabled | bool(false) %}
+                            Room 5: P={{ room5_presence }} | D={{ room5_demand }} | B={{ room5_needs_boost }}
+                            {% endif %}
                   - service: climate.set_temperature
                     target:
                       entity_id: "{{ inputs.master_climate }}"
@@ -2861,7 +2928,7 @@ action:
                       temperature: "{{ master_required_target_with_boost }}"
                     continue_on_error: true
                   - delay:
-                      seconds: 2
+                      seconds: 30
                   - condition: template
                     value_template: >
                       {{ ((state_attr(inputs.master_climate, 'temperature') | float(0)) - (master_required_target_with_boost | float(0))) | abs <= 0.11 }}
@@ -2875,33 +2942,33 @@ action:
               - conditions:
                   - "{{ master_write_allowed }}"
                 sequence:
-                  - choose:
-                      - conditions:
-                          - "{{ inputs.enable_debug_notifications | bool(false) }}"
-                        sequence:
-                          - service: persistent_notification.create
-                            data:
-                              title: "🔥 Vaillant Debug"
-                              message: |
-                                Time: {{ now().strftime('%H:%M:%S') }}
-                                
-                                Master:
-                                - Base: {{ master_base_required_target }}
-                                - Final: {{ master_required_target_with_boost }}
-                                - Boost Active: {{ master_boost_active }}
-                                
-                                {% if inputs.room2_enabled | bool(false) %}
-                                Room 2: P={{ room2_presence }} | D={{ room2_demand }} | B={{ room2_needs_boost }}
-                                {% endif %}
-                                {% if inputs.room3_enabled | bool(false) %}
-                                Room 3: P={{ room3_presence }} | D={{ room3_demand }} | B={{ room3_needs_boost }}
-                                {% endif %}
-                                {% if inputs.room4_enabled | bool(false) %}
-                                Room 4: P={{ room4_presence }} | D={{ room4_demand }} | B={{ room4_needs_boost }}
-                                {% endif %}
-                                {% if inputs.room5_enabled | bool(false) %}
-                                Room 5: P={{ room5_presence }} | D={{ room5_demand }} | B={{ room5_needs_boost }}
-                                {% endif %}
+                  - if:
+                      - condition: template
+                        value_template: "{{ inputs.enable_debug_notifications | bool(false) }}"
+                    then:
+                      - service: persistent_notification.create
+                        data:
+                          title: "🔥 Vaillant Debug"
+                          message: |
+                            Time: {{ now().strftime('%H:%M:%S') }}
+                            
+                            Master:
+                            - Base: {{ master_base_required_target }}
+                            - Final: {{ master_required_target_with_boost }}
+                            - Boost Active: {{ master_boost_active }}
+                            
+                            {% if inputs.room2_enabled | bool(false) %}
+                            Room 2: P={{ room2_presence }} | D={{ room2_demand }} | B={{ room2_needs_boost }}
+                            {% endif %}
+                            {% if inputs.room3_enabled | bool(false) %}
+                            Room 3: P={{ room3_presence }} | D={{ room3_demand }} | B={{ room3_needs_boost }}
+                            {% endif %}
+                            {% if inputs.room4_enabled | bool(false) %}
+                            Room 4: P={{ room4_presence }} | D={{ room4_demand }} | B={{ room4_needs_boost }}
+                            {% endif %}
+                            {% if inputs.room5_enabled | bool(false) %}
+                            Room 5: P={{ room5_presence }} | D={{ room5_demand }} | B={{ room5_needs_boost }}
+                            {% endif %}
                   - service: climate.set_temperature
                     target:
                       entity_id: "{{ inputs.master_climate }}"
@@ -2909,7 +2976,7 @@ action:
                       temperature: "{{ master_required_target_with_boost }}"
                     continue_on_error: true
                   - delay:
-                      seconds: 2
+                      seconds: 30
                   - condition: template
                     value_template: >
                       {{ ((state_attr(inputs.master_climate, 'temperature') | float(0)) - (master_required_target_with_boost | float(0))) | abs <= 0.11 }}
