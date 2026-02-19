@@ -122,7 +122,7 @@ blueprint:
             Optionaler Helper für die Eco-Solltemperatur. Überschreibt den Fixwert.
             Erforderlicher Helfer-Typ: **Schieberegler** (input_number).
 
-          default: ""
+          default: "sensor.none"
           selector:
             entity:
               domain: input_number
@@ -146,7 +146,7 @@ blueprint:
             Optionaler Helper für die Away-Solltemperatur. Überschreibt den Fixwert.
             Erforderlicher Helfer-Typ: **Schieberegler** (input_number).
 
-          default: ""
+          default: "sensor.none"
           selector:
             entity:
               domain: input_number
@@ -232,7 +232,7 @@ blueprint:
             Optionaler Helper für die Komfort-Solltemperatur des Master-Raums.
             Erforderlicher Helfer-Typ: **Schieberegler** (input_number).
 
-          default: ""
+          default: "sensor.none"
           selector:
             entity:
               domain: input_number
@@ -277,6 +277,7 @@ blueprint:
 
             Input boolean to store master presence state. Create manually: Settings -> Helpers -> Toggle -> Name: 'Heating: Master Presence Active'
 
+          default: "sensor.none"
           selector:
             entity:
               domain: input_boolean
@@ -512,7 +513,7 @@ blueprint:
             Optionaler Helper für die Komfort-Solltemperatur in Raum 2.
             Erforderlicher Helfer-Typ: **Schieberegler** (input_number).
 
-          default: ""
+          default: "sensor.none"
           selector:
             entity:
               domain: input_number
@@ -557,7 +558,7 @@ blueprint:
 
             Input boolean for room2 presence state. Create manually: Settings -> Helpers -> Toggle -> Name: 'Heating: Room2 Presence Active'
 
-          default: ""
+          default: "sensor.none"
           selector:
             entity:
               domain: input_boolean
@@ -619,7 +620,7 @@ blueprint:
             Optionaler Helper für die Komfort-Solltemperatur in Raum 3.
             Erforderlicher Helfer-Typ: **Schieberegler** (input_number).
 
-          default: ""
+          default: "sensor.none"
           selector:
             entity:
               domain: input_number
@@ -664,7 +665,7 @@ blueprint:
 
             Input boolean for room3 presence state. Create manually: Settings -> Helpers -> Toggle -> Name: 'Heating: Room3 Presence Active'
 
-          default: ""
+          default: "sensor.none"
           selector:
             entity:
               domain: input_boolean
@@ -726,7 +727,7 @@ blueprint:
             Optionaler Helper für die Komfort-Solltemperatur in Raum 4.
             Erforderlicher Helfer-Typ: **Schieberegler** (input_number).
 
-          default: ""
+          default: "sensor.none"
           selector:
             entity:
               domain: input_number
@@ -771,7 +772,7 @@ blueprint:
 
             Input boolean for room4 presence state. Create manually: Settings -> Helpers -> Toggle -> Name: 'Heating: Room4 Presence Active'
 
-          default: ""
+          default: "sensor.none"
           selector:
             entity:
               domain: input_boolean
@@ -833,7 +834,7 @@ blueprint:
             Optionaler Helper für die Komfort-Solltemperatur in Raum 5.
             Erforderlicher Helfer-Typ: **Schieberegler** (input_number).
 
-          default: ""
+          default: "sensor.none"
           selector:
             entity:
               domain: input_number
@@ -878,7 +879,7 @@ blueprint:
 
             Input boolean for room5 presence state. Create manually: Settings -> Helpers -> Toggle -> Name: 'Heating: Room5 Presence Active'
 
-          default: ""
+          default: "sensor.none"
           selector:
             entity:
               domain: input_boolean
@@ -1227,6 +1228,25 @@ trigger:
     id: awaymodechange
 
   # ============================================
+  # PRESENCE HELPER TRIGGERS
+  # ============================================
+  - platform: state
+    entity_id: !input master_presence_helper
+    id: master_presence_helper_change
+  - platform: state
+    entity_id: !input room2_presence_helper
+    id: room2_presence_helper_change
+  - platform: state
+    entity_id: !input room3_presence_helper
+    id: room3_presence_helper_change
+  - platform: state
+    entity_id: !input room4_presence_helper
+    id: room4_presence_helper_change
+  - platform: state
+    entity_id: !input room5_presence_helper
+    id: room5_presence_helper_change
+
+  # ============================================
   # SCHEDULED TRIGGER (for temp logic)
   # ============================================
   - platform: time_pattern
@@ -1256,7 +1276,7 @@ action:
           - variables:
               presence_helper_entity: !input master_presence_helper
           - condition: template
-            value_template: "{{ presence_helper_entity | string != '' }}"
+            value_template: "{{ presence_helper_entity | string not in ['', 'sensor.none'] }}"
           - service: input_boolean.turn_on
             target:
               entity_id: "{{ presence_helper_entity }}"
@@ -1275,7 +1295,7 @@ action:
           - variables:
               presence_helper_entity: !input master_presence_helper
           - condition: template
-            value_template: "{{ presence_helper_entity | string != '' }}"
+            value_template: "{{ presence_helper_entity | string not in ['', 'sensor.none'] }}"
           - service: input_boolean.turn_off
             target:
               entity_id: "{{ presence_helper_entity }}"
@@ -1294,7 +1314,7 @@ action:
           - variables:
               presence_helper_entity: !input room2_presence_helper
           - condition: template
-            value_template: "{{ presence_helper_entity | string != '' }}"
+            value_template: "{{ presence_helper_entity | string not in ['', 'sensor.none'] }}"
           - service: input_boolean.turn_on
             target:
               entity_id: "{{ presence_helper_entity }}"
@@ -1313,7 +1333,7 @@ action:
           - variables:
               presence_helper_entity: !input room2_presence_helper
           - condition: template
-            value_template: "{{ presence_helper_entity | string != '' }}"
+            value_template: "{{ presence_helper_entity | string not in ['', 'sensor.none'] }}"
           - service: input_boolean.turn_off
             target:
               entity_id: "{{ presence_helper_entity }}"
@@ -1332,7 +1352,7 @@ action:
           - variables:
               presence_helper_entity: !input room3_presence_helper
           - condition: template
-            value_template: "{{ presence_helper_entity | string != '' }}"
+            value_template: "{{ presence_helper_entity | string not in ['', 'sensor.none'] }}"
           - service: input_boolean.turn_on
             target:
               entity_id: "{{ presence_helper_entity }}"
@@ -1351,7 +1371,7 @@ action:
           - variables:
               presence_helper_entity: !input room3_presence_helper
           - condition: template
-            value_template: "{{ presence_helper_entity | string != '' }}"
+            value_template: "{{ presence_helper_entity | string not in ['', 'sensor.none'] }}"
           - service: input_boolean.turn_off
             target:
               entity_id: "{{ presence_helper_entity }}"
@@ -1370,7 +1390,7 @@ action:
           - variables:
               presence_helper_entity: !input room4_presence_helper
           - condition: template
-            value_template: "{{ presence_helper_entity | string != '' }}"
+            value_template: "{{ presence_helper_entity | string not in ['', 'sensor.none'] }}"
           - service: input_boolean.turn_on
             target:
               entity_id: "{{ presence_helper_entity }}"
@@ -1389,7 +1409,7 @@ action:
           - variables:
               presence_helper_entity: !input room4_presence_helper
           - condition: template
-            value_template: "{{ presence_helper_entity | string != '' }}"
+            value_template: "{{ presence_helper_entity | string not in ['', 'sensor.none'] }}"
           - service: input_boolean.turn_off
             target:
               entity_id: "{{ presence_helper_entity }}"
@@ -1408,7 +1428,7 @@ action:
           - variables:
               presence_helper_entity: !input room5_presence_helper
           - condition: template
-            value_template: "{{ presence_helper_entity | string != '' }}"
+            value_template: "{{ presence_helper_entity | string not in ['', 'sensor.none'] }}"
           - service: input_boolean.turn_on
             target:
               entity_id: "{{ presence_helper_entity }}"
@@ -1427,7 +1447,7 @@ action:
           - variables:
               presence_helper_entity: !input room5_presence_helper
           - condition: template
-            value_template: "{{ presence_helper_entity | string != '' }}"
+            value_template: "{{ presence_helper_entity | string not in ['', 'sensor.none'] }}"
           - service: input_boolean.turn_off
             target:
               entity_id: "{{ presence_helper_entity }}"
@@ -1546,16 +1566,24 @@ action:
 
         {% endif %}
       helper_input_trigger: >
-        {{ trigger_id_safe in [
-          'eco_temp_input_change',
-          'away_temp_input_change',
-          'master_comfort_input_change',
-          'room2_comfort_input_change',
-          'room3_comfort_input_change',
-          'room4_comfort_input_change',
-          'room5_comfort_input_change',
-          'awaymodechange'
-        ] }}
+        {{
+          (trigger_id_safe in [
+            'eco_temp_input_change',
+            'away_temp_input_change',
+            'master_comfort_input_change',
+            'room2_comfort_input_change',
+            'room3_comfort_input_change',
+            'room4_comfort_input_change',
+            'room5_comfort_input_change',
+            'awaymodechange',
+            'master_presence_helper_change',
+            'room2_presence_helper_change',
+            'room3_presence_helper_change',
+            'room4_presence_helper_change',
+            'room5_presence_helper_change'
+          ]) and
+          ((trigger.entity_id | string) != 'sensor.none')
+        }}
       helper_input_trigger_entity: >
         {% if not helper_input_trigger | bool(false) %}
 
@@ -1588,31 +1616,31 @@ action:
       # FRESH PRESENCE RECONCILIATION (Trigger-Agnostic)
       # ════════════════════════════════════════════════════════════
       master_presence_fresh: >
-        {% if inputs.master_presence_helper | string == '' %}
+        {% if inputs.master_presence_helper | string in ['', 'sensor.none'] %}
           {{ false }}
         {% else %}
           {{ is_state(inputs.master_presence_helper, 'on') | bool(false) }}
         {% endif %}
       room2_presence_fresh: >
-        {% if not (inputs.room2_enabled | bool(false)) or inputs.room2_presence_helper | string == '' %}
+        {% if not (inputs.room2_enabled | bool(false)) or inputs.room2_presence_helper | string in ['', 'sensor.none'] %}
           {{ false }}
         {% else %}
           {{ is_state(inputs.room2_presence_helper, 'on') | bool(false) }}
         {% endif %}
       room3_presence_fresh: >
-        {% if not (inputs.room3_enabled | bool(false)) or inputs.room3_presence_helper | string == '' %}
+        {% if not (inputs.room3_enabled | bool(false)) or inputs.room3_presence_helper | string in ['', 'sensor.none'] %}
           {{ false }}
         {% else %}
           {{ is_state(inputs.room3_presence_helper, 'on') | bool(false) }}
         {% endif %}
       room4_presence_fresh: >
-        {% if not (inputs.room4_enabled | bool(false)) or inputs.room4_presence_helper | string == '' %}
+        {% if not (inputs.room4_enabled | bool(false)) or inputs.room4_presence_helper | string in ['', 'sensor.none'] %}
           {{ false }}
         {% else %}
           {{ is_state(inputs.room4_presence_helper, 'on') | bool(false) }}
         {% endif %}
       room5_presence_fresh: >
-        {% if not (inputs.room5_enabled | bool(false)) or inputs.room5_presence_helper | string == '' %}
+        {% if not (inputs.room5_enabled | bool(false)) or inputs.room5_presence_helper | string in ['', 'sensor.none'] %}
           {{ false }}
         {% else %}
           {{ is_state(inputs.room5_presence_helper, 'on') | bool(false) }}
