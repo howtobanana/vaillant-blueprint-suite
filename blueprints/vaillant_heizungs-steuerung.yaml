@@ -1033,20 +1033,6 @@ blueprint:
               max: 120
               step: 5
               unit_of_measurement: "s"
-        heartbeat_interval_minutes:
-          name: "💓 Heartbeat Intervall (min)"
-          description: |
-
-            Intervall für zyklische Neubewertung per Zeit-Trigger.
-            Präsenz-Trigger reagieren weiterhin sofort und unabhängig davon.
-
-          default: 1
-          selector:
-            number:
-              min: 1
-              max: 15
-              step: 1
-              unit_of_measurement: "min"
 
 
 mode: restart
@@ -1225,7 +1211,7 @@ trigger:
     id: room5_comfort_input_change
   - platform: state
     entity_id: !input away_mode_boolean
-    id: awaymodechange
+    id: away_mode_change
 
   # ============================================
   # PRESENCE HELPER TRIGGERS
@@ -1250,7 +1236,7 @@ trigger:
   # SCHEDULED TRIGGER (for temp logic)
   # ============================================
   - platform: time_pattern
-    minutes: "/1"
+    minutes: "/5"
     id: scheduled
 
 condition: []
@@ -1288,6 +1274,7 @@ action:
                 data:
                   message: "Vaillant Blueprint: Master Presence ACTIVATED (sensor ON >{{ presence_activation_delay }}min)"
                   level: info
+          - stop: ""
       - conditions:
           - condition: trigger
             id: master_presence_off
@@ -1307,6 +1294,7 @@ action:
                 data:
                   message: "Vaillant Blueprint: Master Presence DEACTIVATED (sensor OFF >{{ presence_deactivation_delay }}min)"
                   level: info
+          - stop: ""
       - conditions:
           - condition: trigger
             id: room2_presence_on
@@ -1326,6 +1314,7 @@ action:
                 data:
                   message: "Vaillant Blueprint: Room2 Presence ACTIVATED"
                   level: info
+          - stop: ""
       - conditions:
           - condition: trigger
             id: room2_presence_off
@@ -1345,6 +1334,7 @@ action:
                 data:
                   message: "Vaillant Blueprint: Room2 Presence DEACTIVATED"
                   level: info
+          - stop: ""
       - conditions:
           - condition: trigger
             id: room3_presence_on
@@ -1364,6 +1354,7 @@ action:
                 data:
                   message: "Vaillant Blueprint: Room3 Presence ACTIVATED"
                   level: info
+          - stop: ""
       - conditions:
           - condition: trigger
             id: room3_presence_off
@@ -1383,6 +1374,7 @@ action:
                 data:
                   message: "Vaillant Blueprint: Room3 Presence DEACTIVATED"
                   level: info
+          - stop: ""
       - conditions:
           - condition: trigger
             id: room4_presence_on
@@ -1402,6 +1394,7 @@ action:
                 data:
                   message: "Vaillant Blueprint: Room4 Presence ACTIVATED"
                   level: info
+          - stop: ""
       - conditions:
           - condition: trigger
             id: room4_presence_off
@@ -1421,6 +1414,7 @@ action:
                 data:
                   message: "Vaillant Blueprint: Room4 Presence DEACTIVATED"
                   level: info
+          - stop: ""
       - conditions:
           - condition: trigger
             id: room5_presence_on
@@ -1440,6 +1434,7 @@ action:
                 data:
                   message: "Vaillant Blueprint: Room5 Presence ACTIVATED"
                   level: info
+          - stop: ""
       - conditions:
           - condition: trigger
             id: room5_presence_off
@@ -1459,20 +1454,8 @@ action:
                 data:
                   message: "Vaillant Blueprint: Room5 Presence DEACTIVATED"
                   level: info
+          - stop: ""
 
-  # Continue to scheduled logic if no presence trigger matched
-  - variables:
-      heartbeat_interval_minutes: !input heartbeat_interval_minutes
-      scheduled_heartbeat_due: >
-        {% set hb = heartbeat_interval_minutes | int(1) %}
-        {% set effective_hb = 1 if hb < 1 else hb %}
-        {% if trigger is defined and trigger.id is defined and trigger.id | string == 'scheduled' %}
-          {{ ((now().minute | int(0)) % effective_hb) == 0 }}
-        {% else %}
-          {{ true }}
-        {% endif %}
-  - condition: template
-    value_template: "{{ scheduled_heartbeat_due | bool(false) }}"
   - variables:
       # ===== GROUP 1: INPUTS & HELPERS =====
       inputs:
@@ -1495,7 +1478,6 @@ action:
         enable_humidity_compensation: !input enable_humidity_compensation
         enable_debug_notifications: !input enable_debug_notifications
         helper_input_settle_seconds: !input helper_input_settle_seconds
-        heartbeat_interval_minutes: !input heartbeat_interval_minutes
         master_climate: !input master_climate
         master_last_write_helper: !input master_last_write_helper
         master_comfort_input: !input master_comfort_input
@@ -1575,14 +1557,9 @@ action:
             'room3_comfort_input_change',
             'room4_comfort_input_change',
             'room5_comfort_input_change',
-            'awaymodechange',
-            'master_presence_helper_change',
-            'room2_presence_helper_change',
-            'room3_presence_helper_change',
-            'room4_presence_helper_change',
-            'room5_presence_helper_change'
+            'away_mode_change'
           ]) and
-          ((trigger.entity_id | string) != 'sensor.none')
+          (trigger.entity_id | string != 'sensor.none')
         }}
       helper_input_trigger_entity: >
         {% if not helper_input_trigger | bool(false) %}
@@ -1612,38 +1589,82 @@ action:
         {% else %}
           {{ false }}
         {% endif %}
-      # ════════════════════════════════════════════════════════════
-      # FRESH PRESENCE RECONCILIATION (Trigger-Agnostic)
-      # ════════════════════════════════════════════════════════════
+      # Smart Presence Evaluation: Check helper OR check if physical sensor has been ON longer than the delay (survives HA restarts)
       master_presence_fresh: >
-        {% if inputs.master_presence_helper | string in ['', 'sensor.none'] %}
-          {{ false }}
-        {% else %}
-          {{ is_state(inputs.master_presence_helper, 'on') | bool(false) }}
-        {% endif %}
+        {% set helper = false if inputs.master_presence_helper in ['', 'sensor.none'] else is_state(inputs.master_presence_helper, 'on') %}
+        {% set delay = (presence_activation_delay | float(2)) * 60 %}
+        {% set active = expand(inputs.master_presence_sensors) | selectattr('state', 'eq', 'on') | list if inputs.master_presence_sensors else [] %}
+        {% set ns = namespace(sensor_on=false) %}
+        {% set now_ts = as_timestamp(now()) | float(0) %}
+        {% for s in active %}
+          {% if (now_ts - (as_timestamp(s.last_changed, now_ts) | float(now_ts))) >= delay %}
+            {% set ns.sensor_on = true %}
+          {% endif %}
+        {% endfor %}
+        {{ helper or ns.sensor_on }}
       room2_presence_fresh: >
-        {% if not (inputs.room2_enabled | bool(false)) or inputs.room2_presence_helper | string in ['', 'sensor.none'] %}
+        {% if not (inputs.room2_enabled | bool(false)) %}
           {{ false }}
         {% else %}
-          {{ is_state(inputs.room2_presence_helper, 'on') | bool(false) }}
+          {% set helper = false if inputs.room2_presence_helper in ['', 'sensor.none'] else is_state(inputs.room2_presence_helper, 'on') %}
+          {% set delay = (presence_activation_delay | float(2)) * 60 %}
+          {% set active = expand(inputs.room2_presence_sensors) | selectattr('state', 'eq', 'on') | list if inputs.room2_presence_sensors else [] %}
+          {% set ns = namespace(sensor_on=false) %}
+          {% set now_ts = as_timestamp(now()) | float(0) %}
+          {% for s in active %}
+            {% if (now_ts - (as_timestamp(s.last_changed, now_ts) | float(now_ts))) >= delay %}
+              {% set ns.sensor_on = true %}
+            {% endif %}
+          {% endfor %}
+          {{ helper or ns.sensor_on }}
         {% endif %}
       room3_presence_fresh: >
-        {% if not (inputs.room3_enabled | bool(false)) or inputs.room3_presence_helper | string in ['', 'sensor.none'] %}
+        {% if not (inputs.room3_enabled | bool(false)) %}
           {{ false }}
         {% else %}
-          {{ is_state(inputs.room3_presence_helper, 'on') | bool(false) }}
+          {% set helper = false if inputs.room3_presence_helper in ['', 'sensor.none'] else is_state(inputs.room3_presence_helper, 'on') %}
+          {% set delay = (presence_activation_delay | float(2)) * 60 %}
+          {% set active = expand(inputs.room3_presence_sensors) | selectattr('state', 'eq', 'on') | list if inputs.room3_presence_sensors else [] %}
+          {% set ns = namespace(sensor_on=false) %}
+          {% set now_ts = as_timestamp(now()) | float(0) %}
+          {% for s in active %}
+            {% if (now_ts - (as_timestamp(s.last_changed, now_ts) | float(now_ts))) >= delay %}
+              {% set ns.sensor_on = true %}
+            {% endif %}
+          {% endfor %}
+          {{ helper or ns.sensor_on }}
         {% endif %}
       room4_presence_fresh: >
-        {% if not (inputs.room4_enabled | bool(false)) or inputs.room4_presence_helper | string in ['', 'sensor.none'] %}
+        {% if not (inputs.room4_enabled | bool(false)) %}
           {{ false }}
         {% else %}
-          {{ is_state(inputs.room4_presence_helper, 'on') | bool(false) }}
+          {% set helper = false if inputs.room4_presence_helper in ['', 'sensor.none'] else is_state(inputs.room4_presence_helper, 'on') %}
+          {% set delay = (presence_activation_delay | float(2)) * 60 %}
+          {% set active = expand(inputs.room4_presence_sensors) | selectattr('state', 'eq', 'on') | list if inputs.room4_presence_sensors else [] %}
+          {% set ns = namespace(sensor_on=false) %}
+          {% set now_ts = as_timestamp(now()) | float(0) %}
+          {% for s in active %}
+            {% if (now_ts - (as_timestamp(s.last_changed, now_ts) | float(now_ts))) >= delay %}
+              {% set ns.sensor_on = true %}
+            {% endif %}
+          {% endfor %}
+          {{ helper or ns.sensor_on }}
         {% endif %}
       room5_presence_fresh: >
-        {% if not (inputs.room5_enabled | bool(false)) or inputs.room5_presence_helper | string in ['', 'sensor.none'] %}
+        {% if not (inputs.room5_enabled | bool(false)) %}
           {{ false }}
         {% else %}
-          {{ is_state(inputs.room5_presence_helper, 'on') | bool(false) }}
+          {% set helper = false if inputs.room5_presence_helper in ['', 'sensor.none'] else is_state(inputs.room5_presence_helper, 'on') %}
+          {% set delay = (presence_activation_delay | float(2)) * 60 %}
+          {% set active = expand(inputs.room5_presence_sensors) | selectattr('state', 'eq', 'on') | list if inputs.room5_presence_sensors else [] %}
+          {% set ns = namespace(sensor_on=false) %}
+          {% set now_ts = as_timestamp(now()) | float(0) %}
+          {% for s in active %}
+            {% if (now_ts - (as_timestamp(s.last_changed, now_ts) | float(now_ts))) >= delay %}
+              {% set ns.sensor_on = true %}
+            {% endif %}
+          {% endfor %}
+          {{ helper or ns.sensor_on }}
         {% endif %}
   # ════════════════════════════════════════════════════════════
   # DEBUG LOG 1: Presence Reconciliation
@@ -2784,19 +2805,8 @@ action:
                   (room5_boost_deactivate | bool(true))
                 }}
               master_set_now: "{{ state_attr(inputs.master_climate, 'temperature') | float(0) }}"
-              boost_latch_active_from_setpoint: >
-                {% set boost_half = (inputs.room_boost_amount | float(0)) * 0.5 %}
-                {{ (master_set_now | float(0)) >= ((master_required_target | float(0)) + boost_half) }}
-              master_boost_hold_active: >
-                {{ (boost_latch_active_from_setpoint | bool(false)) and (not (all_rooms_boost_deactivate | bool(true))) }}
               master_boost_active: >
-                {{
-                  (room_boost_enabled_effective | bool(false)) and
-                  (
-                    (any_room_needs_boost | bool(false)) or
-                    (master_boost_hold_active | bool(false))
-                  )
-                }}
+                {{ (any_room_needs_boost | bool(false)) and not (all_rooms_boost_deactivate | bool(false)) }}
               master_boost_amount: >
                 {% if master_boost_active | bool(false) %}
                   {{ inputs.room_boost_amount | float(2.0) }}
@@ -2805,8 +2815,8 @@ action:
                 {% endif %}
               master_required_target_with_boost: >
                 {% set base = master_required_target | float(20) %}
-                {% set boost = (inputs.room_boost_amount | float(0)) if (master_boost_active | bool(false)) else 0 %}
-                {{ [base + boost, master_max | float(30)] | min }}
+                {% set boost = master_boost_amount | float(0) %}
+                {{ base + boost }}
               master_target_delta_abs: "{{ ((master_required_target_with_boost | float(0)) - (master_set_now | float(0))) | abs }}"
               master_needs_global_boost: >
                 {{ (not (away_mode_active_effective | bool(false))) and ((master_set_now | float(0)) < ((global_max_demand | float(0)) - 0.1)) }}
