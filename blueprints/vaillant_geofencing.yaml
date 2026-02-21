@@ -244,8 +244,9 @@ action:
           {% set dist = distance_km | float(0) %}
           {% set base_radius = inputs.preheat_radius | float(5) %}
           {% set dir = dir_of_travel | string | lower %}
-          {% set effective_radius = (base_radius * 2) if dir == 'towards' else base_radius %}
-          {% set hysteresis_km = '0.5' | float(0) %}
+          {% set effective_radius = (base_radius * 2.0) if dir == 'towards' else base_radius %}
+          {% set calc_hyst = (effective_radius * 0.1) | float(0.0) %}
+          {% set hysteresis_km = [calc_hyst, 0.5] | max %}
           {% set currently_away = away_mode_entity_on | bool(false) %}
           {% if currently_away | bool(false) %}
             {% set far_away = dist >= (effective_radius - hysteresis_km) %}
