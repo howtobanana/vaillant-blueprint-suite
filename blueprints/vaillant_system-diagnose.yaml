@@ -370,6 +370,20 @@ blueprint:
           default: false
           selector:
             boolean:
+        enable_daily_briefing:
+          name: "📅 Tägliches Briefing"
+          description: |
+            Sendet einmal täglich eine Zusammenfassung der Systemwerte (Druck, Effizienz).
+          default: false
+          selector:
+            boolean: {}
+        briefing_time:
+          name: "🕒 Briefing-Uhrzeit"
+          description: |
+            Uhrzeit für den täglichen Report (z.B. 18:00:00).
+          default: "18:00:00"
+          selector:
+            time: {}
         notify_warning_entities:
           name: "📨 Empfänger: Normal Mobile-App Geräte"
           description: |
@@ -431,12 +445,18 @@ trigger:
         and (states(tv_efficiency_sensor) | float(999)) < (tv_min_efficiency_cop | float(2.5))
       }}
     id: bad_efficiency
+    
+  - platform: time
+    at: !input briefing_time
+    id: daily_briefing
 
 condition: []
 
 action:
   - variables:
       inputs:
+        enable_daily_briefing: !input enable_daily_briefing
+        briefing_time: !input briefing_time
         enable_monitoring: !input enable_monitoring
         enable_safe_mode: !input enable_safe_mode
         master_climate: !input master_climate
@@ -511,100 +531,39 @@ action:
       normal_notify_targets_list: >
         {% set raw = inputs.notify_warning_entities %}
         {% set ns = namespace(items=[]) %}
-        {% if raw is string %}
-          {% for part in raw.replace('\n', ',').split(',') %}
-            {% set ent = part | trim %}
-            {% if ent[:7] == 'notify.' %}
-              {% set ns.items = ns.items + [ent] %}
-            {% elif ent != '' %}
-              {% set user_name = device_attr(ent, 'name_by_user') %}
-              {% set dev_name = user_name if (user_name is string and (user_name | trim) != '') else device_attr(ent, 'name') %}
-              {% if dev_name is string and (dev_name | trim) != '' %}
-                {% set ns.items = ns.items + ['notify.mobile_app_' ~ ((dev_name | slugify) | replace('-', '_'))] %}
-              {% endif %}
+        {% set r_list = raw if (raw is iterable and raw is not string) else ([raw] if raw != '' else []) %}
+        {% for ent_raw in r_list %}
+          {% set ent = (ent_raw | string) | trim %}
+          {% if ent != '' %}
+            {% set user_name = device_attr(ent, 'name_by_user') %}
+            {% set dev_name = user_name if (user_name is string and (user_name | trim) != '') else device_attr(ent, 'name') %}
+            {% if dev_name is string and (dev_name | trim) != '' %}
+              {% set ns.items = ns.items + ['notify.mobile_app_' ~ ((dev_name | slugify) | replace('-', '_'))] %}
             {% endif %}
-          {% endfor %}
-        {% elif raw is iterable %}
-          {% for ent_raw in raw %}
-            {% set ent = (ent_raw | string) | trim %}
-            {% if ent[:7] == 'notify.' %}
-              {% set ns.items = ns.items + [ent] %}
-            {% elif ent != '' %}
-              {% set user_name = device_attr(ent, 'name_by_user') %}
-              {% set dev_name = user_name if (user_name is string and (user_name | trim) != '') else device_attr(ent, 'name') %}
-              {% if dev_name is string and (dev_name | trim) != '' %}
-                {% set ns.items = ns.items + ['notify.mobile_app_' ~ ((dev_name | slugify) | replace('-', '_'))] %}
-              {% endif %}
-            {% endif %}
-          {% endfor %}
-        {% endif %}
+          {% endif %}
+        {% endfor %}
         {{ ns.items | unique | join(',') }}
       critical_notify_targets_list: >
         {% set raw = inputs.notify_critical_entities %}
         {% set ns = namespace(items=[]) %}
-        {% if raw is string %}
-          {% for part in raw.replace('\n', ',').split(',') %}
-            {% set ent = part | trim %}
-            {% if ent[:7] == 'notify.' %}
-              {% set ns.items = ns.items + [ent] %}
-            {% elif ent != '' %}
-              {% set user_name = device_attr(ent, 'name_by_user') %}
-              {% set dev_name = user_name if (user_name is string and (user_name | trim) != '') else device_attr(ent, 'name') %}
-              {% if dev_name is string and (dev_name | trim) != '' %}
-                {% set ns.items = ns.items + ['notify.mobile_app_' ~ ((dev_name | slugify) | replace('-', '_'))] %}
-              {% endif %}
+        {% set r_list = raw if (raw is iterable and raw is not string) else ([raw] if raw != '' else []) %}
+        {% for ent_raw in r_list %}
+          {% set ent = (ent_raw | string) | trim %}
+          {% if ent != '' %}
+            {% set user_name = device_attr(ent, 'name_by_user') %}
+            {% set dev_name = user_name if (user_name is string and (user_name | trim) != '') else device_attr(ent, 'name') %}
+            {% if dev_name is string and (dev_name | trim) != '' %}
+              {% set ns.items = ns.items + ['notify.mobile_app_' ~ ((dev_name | slugify) | replace('-', '_'))] %}
             {% endif %}
-          {% endfor %}
-        {% elif raw is iterable %}
-          {% for ent_raw in raw %}
-            {% set ent = (ent_raw | string) | trim %}
-            {% if ent[:7] == 'notify.' %}
-              {% set ns.items = ns.items + [ent] %}
-            {% elif ent != '' %}
-              {% set user_name = device_attr(ent, 'name_by_user') %}
-              {% set dev_name = user_name if (user_name is string and (user_name | trim) != '') else device_attr(ent, 'name') %}
-              {% if dev_name is string and (dev_name | trim) != '' %}
-                {% set ns.items = ns.items + ['notify.mobile_app_' ~ ((dev_name | slugify) | replace('-', '_'))] %}
-              {% endif %}
-            {% endif %}
-          {% endfor %}
-        {% endif %}
-        {% if ns.items | length > 0 %}
-          {{ ns.items | unique | join(',') }}
-        {% else %}
+          {% endif %}
+        {% endfor %}
+        {% if (ns.items | length) == 0 %}
           {{ normal_notify_targets_list }}
+        {% else %}
+          {{ ns.items | unique | join(',') }}
         {% endif %}
       critical_notify_direct_targets_list: >
-        {% set raw = inputs.notify_critical_entities %}
-        {% set ns = namespace(items=[]) %}
-        {% if raw is string %}
-          {% for part in raw.replace('\n', ',').split(',') %}
-            {% set ent = part | trim %}
-            {% if ent[:7] == 'notify.' %}
-              {% set ns.items = ns.items + [ent] %}
-            {% elif ent != '' %}
-              {% set user_name = device_attr(ent, 'name_by_user') %}
-              {% set dev_name = user_name if (user_name is string and (user_name | trim) != '') else device_attr(ent, 'name') %}
-              {% if dev_name is string and (dev_name | trim) != '' %}
-                {% set ns.items = ns.items + ['notify.mobile_app_' ~ ((dev_name | slugify) | replace('-', '_'))] %}
-              {% endif %}
-            {% endif %}
-          {% endfor %}
-        {% elif raw is iterable %}
-          {% for ent_raw in raw %}
-            {% set ent = (ent_raw | string) | trim %}
-            {% if ent[:7] == 'notify.' %}
-              {% set ns.items = ns.items + [ent] %}
-            {% elif ent != '' %}
-              {% set user_name = device_attr(ent, 'name_by_user') %}
-              {% set dev_name = user_name if (user_name is string and (user_name | trim) != '') else device_attr(ent, 'name') %}
-              {% if dev_name is string and (dev_name | trim) != '' %}
-                {% set ns.items = ns.items + ['notify.mobile_app_' ~ ((dev_name | slugify) | replace('-', '_'))] %}
-              {% endif %}
-            {% endif %}
-          {% endfor %}
-        {% endif %}
-        {{ ns.items | unique | join(',') }}
+        {{ critical_notify_targets_list }}
       notifications_enabled: "{{ inputs.notifications_enabled }}"
       warning_notifications_allowed: "{{ notifications_enabled and inputs.notify_warnings }}"
       info_notifications_allowed: "{{ notifications_enabled and inputs.notify_info }}"
@@ -617,20 +576,21 @@ action:
           unknown
         {% endif %}
       master_offline_hours: >
-        {% if inputs.master_climate != "" %}
-          {% set st = expand([inputs.master_climate]) | first %}
-          {% if st is not none and st.state in ['unavailable', 'unknown'] and st.last_changed is defined %}
+        {% set e_id = inputs.master_climate | string %}
+        {% if e_id != "" and states[e_id] is defined %}
+          {% set st = states[e_id] %}
+          {% if st.state in ['unavailable', 'unknown'] and st.last_changed is defined %}
             {% set dt = st.last_changed | as_datetime %}
             {% if dt is not none %}
-              {{ ((as_timestamp(now()) - as_timestamp(dt, as_timestamp(now()))) / 3600) }}
+              {{ ((as_timestamp(now()) - as_timestamp(dt, as_timestamp(now()))) / 3600) | float(0.0) }}
             {% else %}
-              0
+              {{ 99.0 }}
             {% endif %}
           {% else %}
-            0
+            {{ 0.0 }}
           {% endif %}
         {% else %}
-          0
+          {{ 0.0 }}
         {% endif %}
       water_pressure_sensor_configured: >
         {{ inputs.water_pressure_sensor != '' }}
@@ -755,13 +715,16 @@ action:
                   {% set devices = devices + [{'entity': inputs.room5_temp_sensor, 'label': room5_label + ' (Temp Sensor)'}] %}
                 {% endif %}
                 {% for d in devices %}
-                  {% set state_obj = expand([d.entity]) | first %}
-                  {% if state_obj is not none and state_obj.last_changed is defined %}
-                    {% set state_val = states(d.entity) %}
-                    {% set changed_dt = state_obj.last_changed | as_datetime %}
-                    {% set age = ((as_timestamp(now()) - as_timestamp(changed_dt, as_timestamp(now()))) if changed_dt is not none else 999999) %}
-                    {% if state_val in ['unavailable', 'unknown'] and age >= (trv_health_delay_sec | int(900)) and age < ((trv_health_delay_sec | int(900)) + (trv_health_alert_window_sec | int(1800))) %}
-                      {% set ns.items = ns.items + [d.label] %}
+                  {% set e_id = d.entity | string %}
+                  {% if e_id != '' and states[e_id] is defined %}
+                    {% set state_obj = states[e_id] %}
+                    {% if state_obj.last_changed is defined %}
+                      {% set state_val = state_obj.state %}
+                      {% set changed_dt = state_obj.last_changed | as_datetime %}
+                      {% set age = ((as_timestamp(now()) - as_timestamp(changed_dt, as_timestamp(now()))) if changed_dt is not none else 999999) %}
+                      {% if state_val in ['unavailable', 'unknown'] and age >= (trv_health_delay_sec | int(900)) %}
+                        {% set ns.items = ns.items + [d.label] %}
+                      {% endif %}
                     {% endif %}
                   {% endif %}
                 {% endfor %}
@@ -785,15 +748,18 @@ action:
                   {% set batts = batts + [{'entity': inputs.room5_battery_sensor, 'label': room5_label}] %}
                 {% endif %}
                 {% for b in batts %}
-                  {% set state_obj = expand([b.entity]) | first %}
-                  {% if state_obj is not none and state_obj.last_changed is defined %}
-                    {% set raw = state_obj.state %}
-                    {% set val = raw | float(999) %}
-                    {% set valid = raw not in ['unknown', 'unavailable', 'none', ''] %}
-                    {% set changed_dt = state_obj.last_changed | as_datetime %}
-                    {% set age = ((as_timestamp(now()) - as_timestamp(changed_dt, as_timestamp(now()))) if changed_dt is not none else 999999) %}
-                    {% if valid and val <= (inputs.trv_battery_threshold | float(20)) and age >= (trv_health_delay_sec | int(900)) and age < ((trv_health_delay_sec | int(900)) + (trv_health_alert_window_sec | int(1800))) %}
-                      {% set ns.items = ns.items + [b.label + ' (' + (val | round(0) | string) + '%)'] %}
+                  {% set e_id = b.entity | string %}
+                  {% if e_id != '' and states[e_id] is defined %}
+                    {% set state_obj = states[e_id] %}
+                    {% if state_obj.last_changed is defined %}
+                      {% set raw = state_obj.state %}
+                      {% set val = raw | float(999) %}
+                      {% set valid = raw not in ['unknown', 'unavailable', 'none', ''] %}
+                      {% set changed_dt = state_obj.last_changed | as_datetime %}
+                      {% set age = ((as_timestamp(now()) - as_timestamp(changed_dt, as_timestamp(now()))) if changed_dt is not none else 999999) %}
+                      {% if valid and val <= (inputs.trv_battery_threshold | float(20)) and age >= (trv_health_delay_sec | int(900)) %}
+                        {% set ns.items = ns.items + [b.label + ' (' + (val | round(0) | string) + '%)'] %}
+                      {% endif %}
                     {% endif %}
                   {% endif %}
                 {% endfor %}
@@ -925,6 +891,49 @@ action:
                       sequence:
                         - service: "{{ item }}"
                           data:
-                            title: "📉 Schlechte Heiz-Effizienz"
+                            title: "⚠️ Schlechte Heiz-Effizienz"
                             message: "Nur {{ current_efficiency | round(2) }} COP/JAZ - Wartung prüfen!"
                           continue_on_error: true
+
+  # ════════════════════════════════════════════════════════════
+  # FLOW 4: DAILY BRIEFING
+  # ════════════════════════════════════════════════════════════
+  - choose:
+      - conditions:
+          - "{{ inputs.enable_daily_briefing | bool(false) }}"
+          - "{{ trigger.id == 'daily_briefing' }}"
+          - "{{ notifications_enabled | bool(false) }}"
+          - "{{ normal_notify_targets_list | length > 0 }}"
+        sequence:
+          - variables:
+              curr_press: >
+                {% if water_pressure_sensor_configured | bool(false) and states(inputs.water_pressure_sensor) not in ['unknown', 'unavailable'] %}
+                  {{ states(inputs.water_pressure_sensor) | float(0.0) | round(2) }} bar
+                {% else %}
+                  Unbekannt
+                {% endif %}
+              curr_eff: >
+                {% if efficiency_sensor_configured | bool(false) and states(inputs.efficiency_sensor) not in ['unknown', 'unavailable'] %}
+                  {{ states(inputs.efficiency_sensor) | float(0.0) | round(2) }} COP
+                {% else %}
+                  Unbekannt
+                {% endif %}
+              status_master: >
+                {% if master_climate_state not in ['unknown', 'unavailable'] %}
+                  Online ✅
+                {% else %}
+                  Offline ❌
+                {% endif %}
+          - repeat:
+              for_each: "{{ normal_notify_targets_list.split(',') if (normal_notify_targets_list | trim) != '' else [] }}"
+              sequence:
+                - service: "{{ item }}"
+                  data:
+                    title: "📊 Vaillant System-Briefing"
+                    message: >
+                      Guten Tag! Hier ist der aktuelle Status deiner Anlage:
+                      
+                      💧 Wasserdruck: {{ curr_press }}
+                      ⚡ Heizeffizienz: {{ curr_eff }}
+                      🏠 Master-Thermostat: {{ status_master }}
+                  continue_on_error: true

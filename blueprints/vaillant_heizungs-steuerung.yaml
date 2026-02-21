@@ -1712,11 +1712,11 @@ action:
       away_mode_should_be_active: false
       master_target_temp: >
         {% if panic_mode_active | bool(false) %}
-          {{ master_comfort_temp | default(inputs.master_comfort_fixed) | float(inputs.master_comfort_fixed) }}
+          {{ master_comfort_temp }}
         {% elif (away_mode_should_be_active | bool(false)) or (away_mode_entity_on | bool(false)) %}
-          {{ away_temp | default(inputs.away_temp_fixed) | float(inputs.away_temp_fixed) }}
+          {{ away_temp }}
         {% else %}
-          {{ global_max_demand | default(inputs.eco_temp_fixed) | float(inputs.eco_temp_fixed) }}
+          {{ global_max_demand }}
         {% endif %}
       master_rapid_temp_drop: >
         {% if inputs.master_temp_sensor | string != '' %}

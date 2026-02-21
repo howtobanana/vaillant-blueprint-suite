@@ -124,21 +124,23 @@ blueprint:
         notify_device:
           name: "📩 Notify Gerät (Normal)"
           description: |
-            Mobile-App Gerät für Standard-Reminder.
-          default: ""
+            Mobile-App Gerät(e) für Standard-Reminder.
+          default: []
           selector:
             device:
               filter:
                 integration: mobile_app
+              multiple: true
         critical_notify_device:
           name: "🚨 Notify Gerät (Critical)"
           description: |
-            Mobile-App Gerät für kritische Alarm-Meldungen.
-          default: ""
+            Mobile-App Gerät(e) für kritische Alarm-Meldungen.
+          default: []
           selector:
             device:
               filter:
                 integration: mobile_app
+              multiple: true
 
     section_master:
       name: "🏠 Master-Raum"
@@ -354,7 +356,7 @@ action:
         {% if inputs.away_mode_boolean != '' %}
           {{ is_state(inputs.away_mode_boolean, 'on') }}
         {% else %}
-          false
+          {{ false }}
         {% endif %}
 
       is_night: "{{ is_state('sun.sun', 'below_horizon') }}"
@@ -397,14 +399,14 @@ action:
         {% if co2_eval_entity != '' and states(co2_eval_entity) not in ['unknown', 'unavailable', 'none', ''] %}
           {{ states(co2_eval_entity) | float(0) }}
         {% else %}
-          0
+          {{ 0 }}
         {% endif %}
 
       humidity_value: >
         {% if humidity_eval_entity != '' and states(humidity_eval_entity) not in ['unknown', 'unavailable', 'none', ''] %}
           {{ states(humidity_eval_entity) | float(0) }}
         {% else %}
-          0
+          {{ 0 }}
         {% endif %}
 
       co2_high: "{{ co2_eval_entity != '' and (co2_value | float(0)) > (inputs.co2_threshold | float(1200)) }}"
@@ -421,10 +423,10 @@ action:
         {% if trigger.id == 'need_fresh_air_time' and (inputs.enable_daily_reminder | bool(false)) %}
           {% set reasons = reasons + ['Tageszeit erreicht (' ~ (inputs.reminder_time[:5] if inputs.reminder_time is string else 'Reminder') ~ ')'] %}
         {% endif %}
-        {% if co2_high %}
+        {% if co2_high | bool(false) %}
           {% set reasons = reasons + ['CO2 hoch: ' ~ (co2_value | round(0)) ~ ' ppm'] %}
         {% endif %}
-        {% if humidity_high %}
+        {% if humidity_high | bool(false) %}
           {% set reasons = reasons + ['Luftfeuchte hoch: ' ~ (humidity_value | round(1)) ~ '%'] %}
         {% endif %}
         {{ reasons | join(' | ') }}
@@ -432,7 +434,7 @@ action:
       open_windows_text: >
         {% set ns = namespace(items=[]) %}
         {% for w in window_entities %}
-          {% if is_state(w, 'on') %}
+          {% if w != '' and states[w] is defined and is_state(w, 'on') %}
             {% set label = state_attr(w, 'friendly_name') if state_attr(w, 'friendly_name') is not none else w %}
             {% set ns.items = ns.items + [label] %}
           {% endif %}
@@ -440,11 +442,13 @@ action:
         {{ ns.items | join(', ') if ns.items | length > 0 else 'Fenster' }}
 
       any_window_open: >
-        {% if window_entities | length > 0 %}
-          {{ expand(window_entities) | selectattr('state', 'eq', 'on') | list | length > 0 }}
-        {% else %}
-          false
-        {% endif %}
+        {% set ns = namespace(open=false) %}
+        {% for w in window_entities %}
+          {% if w != '' and states[w] is defined and is_state(w, 'on') %}
+            {% set ns.open = true %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.open | bool(false) }}
 
       window_trigger_entity: >
         {% if trigger.event is defined and trigger.event.data is defined and trigger.event.data.entity_id is defined %}
@@ -459,7 +463,7 @@ action:
         {% if trigger.id in window_trigger_ids and trigger.event is defined and trigger.event.data is defined and trigger.event.data.new_state is defined and trigger.event.data.new_state is not none and trigger.event.data.new_state.state is defined %}
           {{ trigger.event.data.new_state.state == 'on' }}
         {% else %}
-          false
+          {{ false }}
         {% endif %}
 
       trigger_window_name: >
@@ -469,40 +473,46 @@ action:
           Fenster
         {% endif %}
 
-      notify_service: >
-        {% if inputs.notify_device is string and inputs.notify_device[:7] == 'notify.' %}
-          {{ inputs.notify_device }}
-        {% elif inputs.notify_device != '' %}
-          {% set user_name = device_attr(inputs.notify_device, 'name_by_user') %}
-          {% set dev_name = user_name if (user_name is string and (user_name | trim) != '') else device_attr(inputs.notify_device, 'name') %}
-          {% if dev_name is string and (dev_name | trim) != '' %}
-            {{ 'notify.mobile_app_' ~ ((dev_name | slugify) | replace('-', '_')) }}
-          {% else %}
-            ""
+      notify_targets_list: >
+        {% set raw = inputs.notify_device %}
+        {% set ns = namespace(items=[]) %}
+        {% set r_list = raw if (raw is iterable and raw is not string) else ([raw] if raw != '' else []) %}
+        {% for ent_raw in r_list %}
+          {% set ent = (ent_raw | string) | trim %}
+          {% if ent != '' %}
+            {% set user_name = device_attr(ent, 'name_by_user') %}
+            {% set dev_name = user_name if (user_name is string and (user_name | trim) != '') else device_attr(ent, 'name') %}
+            {% if dev_name is string and (dev_name | trim) != '' %}
+              {% set ns.items = ns.items + ['notify.mobile_app_' ~ ((dev_name | slugify) | replace('-', '_'))] %}
+            {% endif %}
           {% endif %}
-        {% else %}
-          ""
-        {% endif %}
+        {% endfor %}
+        {{ ns.items | unique | join(',') }}
 
-      critical_service: >
-        {% if inputs.critical_notify_device is string and inputs.critical_notify_device[:7] == 'notify.' %}
-          {{ inputs.critical_notify_device }}
-        {% elif inputs.critical_notify_device != '' %}
-          {% set user_name = device_attr(inputs.critical_notify_device, 'name_by_user') %}
-          {% set dev_name = user_name if (user_name is string and (user_name | trim) != '') else device_attr(inputs.critical_notify_device, 'name') %}
-          {% if dev_name is string and (dev_name | trim) != '' %}
-            {{ 'notify.mobile_app_' ~ ((dev_name | slugify) | replace('-', '_')) }}
-          {% else %}
-            {{ notify_service }}
+      critical_targets_list: >
+        {% set raw = inputs.critical_notify_device %}
+        {% set ns = namespace(items=[]) %}
+        {% set r_list = raw if (raw is iterable and raw is not string) else ([raw] if raw != '' else []) %}
+        {% for ent_raw in r_list %}
+          {% set ent = (ent_raw | string) | trim %}
+          {% if ent != '' %}
+            {% set user_name = device_attr(ent, 'name_by_user') %}
+            {% set dev_name = user_name if (user_name is string and (user_name | trim) != '') else device_attr(ent, 'name') %}
+            {% if dev_name is string and (dev_name | trim) != '' %}
+              {% set ns.items = ns.items + ['notify.mobile_app_' ~ ((dev_name | slugify) | replace('-', '_'))] %}
+            {% endif %}
           {% endif %}
+        {% endfor %}
+        {% if (ns.items | length) == 0 %}
+          {{ notify_targets_list }}
         {% else %}
-          {{ notify_service }}
+          {{ ns.items | unique | join(',') }}
         {% endif %}
 
   # ===== FLOW 1: NEED FRESH AIR =====
   - choose:
       - conditions:
-          - "{{ reminder_triggered }}"
+          - "{{ reminder_triggered | bool(false) }}"
         sequence:
           - service: weather.get_forecasts
             target:
@@ -533,43 +543,49 @@ action:
                     {% set ns.hit = true %}
                   {% endif %}
                 {% endfor %}
-                {{ ns.hit }}
+                {{ ns.hit | bool(false) }}
 
-              weather_blocked: "{{ rain_now or rain_soon }}"
-              reminder_allowed: "{{ (not away_mode_active) and (not is_night) and reminder_triggered and (not weather_blocked) }}"
+              weather_blocked: "{{ (rain_now | bool(false)) or (rain_soon | bool(false)) }}"
+              reminder_allowed: "{{ (not (away_mode_active | bool(false))) and (not (is_night | bool(false))) and (reminder_triggered | bool(false)) and (not (weather_blocked | bool(false))) }}"
 
           - choose:
               - conditions:
-                  - "{{ reminder_allowed }}"
+                  - "{{ reminder_allowed | bool(false) }}"
+                  - "{{ (notify_targets_list | trim) != '' }}"
                 sequence:
-                  - service: "{{ notify_service }}"
-                    data:
-                      title: "🪟 Bitte kurz lüften"
-                      message: >
-                        Stoßlüften empfohlen.
-                        Grund: {{ reminder_reason if (reminder_reason | trim) != '' else 'Zeit-/Schwellwert-Trigger' }}.
-                        Aktuelle Fenster: {{ open_windows_text }}.
-                    continue_on_error: true
+                  - repeat:
+                      for_each: "{{ notify_targets_list.split(',') }}"
+                      sequence:
+                        - service: "{{ item }}"
+                          data:
+                            title: "🪟 Bitte kurz lüften"
+                            message: >
+                              Stoßlüften empfohlen.
+                              Grund: {{ reminder_reason if (reminder_reason | trim) != '' else 'Zeit-/Schwellwert-Trigger' }}.
+                              Aktuelle Fenster: {{ open_windows_text }}.
+                          continue_on_error: true
 
   # ===== FLOW 2: WINDOW OPENED -> TIMER -> ESCALATION =====
   - choose:
       - conditions:
-          - "{{ window_opened_trigger }}"
+          - "{{ window_opened_trigger | bool(false) }}"
         sequence:
           - delay:
               minutes: "{{ inputs.airing_duration }}"
 
           - variables:
               any_window_open_now: >
-                {% if window_entities | length > 0 %}
-                  {{ expand(window_entities) | selectattr('state', 'eq', 'on') | list | length > 0 }}
-                {% else %}
-                  false
-                {% endif %}
+                {% set ns = namespace(open=false) %}
+                {% for w in window_entities %}
+                  {% if w != '' and states[w] is defined and is_state(w, 'on') %}
+                    {% set ns.open = true %}
+                  {% endif %}
+                {% endfor %}
+                {{ ns.open | bool(false) }}
               open_windows_now_text: >
                 {% set ns = namespace(items=[]) %}
                 {% for w in window_entities %}
-                  {% if is_state(w, 'on') %}
+                  {% if w != '' and states[w] is defined and is_state(w, 'on') %}
                     {% set label = state_attr(w, 'friendly_name') if state_attr(w, 'friendly_name') is not none else w %}
                     {% set ns.items = ns.items + [label] %}
                   {% endif %}
@@ -578,37 +594,89 @@ action:
 
           - choose:
               - conditions:
-                  - "{{ any_window_open_now }}"
+                  - "{{ any_window_open_now | bool(false) }}"
+                  - "{{ (notify_targets_list | trim) != '' }}"
                 sequence:
-                  - service: "{{ notify_service }}"
-                    data:
-                      title: "🪟 Zeit zum Schließen"
-                      message: >
-                        Die Lüftungszeit ({{ inputs.airing_duration | int }} min) ist erreicht.
-                        Bitte Fenster schließen: {{ open_windows_now_text }}.
-                    continue_on_error: true
+                  - repeat:
+                      for_each: "{{ notify_targets_list.split(',') }}"
+                      sequence:
+                        - service: "{{ item }}"
+                          data:
+                            title: "🪟 Zeit zum Schließen"
+                            message: >
+                              Die Lüftungszeit ({{ inputs.airing_duration | int }} min) ist erreicht.
+                              Bitte Fenster schließen: {{ open_windows_now_text }}.
+                          continue_on_error: true
 
           - delay:
               minutes: "{{ inputs.escalation_delay }}"
 
           - choose:
               - conditions:
-                  - "{{ critical_service != '' }}"
+                  - "{{ (critical_targets_list | trim) != '' }}"
                 sequence:
                   - repeat:
                       while:
                         - condition: template
                           value_template: >
-                            {% if window_entities | length > 0 %}
-                              {{ expand(window_entities) | selectattr('state', 'eq', 'on') | list | length > 0 }}
-                            {% else %}
-                              false
-                            {% endif %}
+                            {% set ns = namespace(open=false) %}
+                            {% for w in window_entities %}
+                              {% if w != '' and states[w] is defined and is_state(w, 'on') %}
+                                {% set ns.open = true %}
+                              {% endif %}
+                            {% endfor %}
+                            {{ ns.open | bool(false) }}
                       sequence:
-                        - service: "{{ critical_service }}"
+                        - repeat:
+                            for_each: "{{ critical_targets_list.split(',') }}"
+                            sequence:
+                              - service: "{{ item }}"
+                                data:
+                                  title: "🚨 CLOSE WINDOWS NOW!"
+                                  message: "{{ trigger_window_name }} ist noch offen. Bitte sofort schließen!"
+                                  data:
+                                    push:
+                                      interruption-level: critical
+                                      sound:
+                                        name: alarm.caf
+                                        critical: 1
+                                        volume: 1.0
+                                    ttl: 0
+                                    priority: high
+                                continue_on_error: true
+                        - delay:
+                            minutes: 1
+
+  # ===== FLOW 3: SAFETY (RAIN / AWAY MODE) =====
+  - choose:
+      - conditions:
+          - "{{ (trigger.id in ['safety_rain', 'safety_away_mode']) | bool(false) }}"
+        sequence:
+          - variables:
+              safety_due_to_rain: "{{ (trigger.id == 'safety_rain') | bool(false) }}"
+              safety_due_to_away_mode: "{{ ((trigger.id == 'safety_away_mode') and (away_mode_active | bool(false))) | bool(false) }}"
+              safety_should_alert: "{{ ((any_window_open | bool(false)) and ((safety_due_to_rain | bool(false)) or (safety_due_to_away_mode | bool(false)))) | bool(false) }}"
+              safety_reason: >
+                {% if safety_due_to_rain | bool(false) %}
+                  🌧️ Regen erkannt
+                {% elif safety_due_to_away_mode | bool(false) %}
+                  🏠 Away Mode aktiviert
+                {% else %}
+                  ⚠️ Sicherheits-Event
+                {% endif %}
+
+          - choose:
+              - conditions:
+                  - "{{ safety_should_alert | bool(false) }}"
+                  - "{{ (critical_targets_list | trim) != '' }}"
+                sequence:
+                  - repeat:
+                      for_each: "{{ critical_targets_list.split(',') }}"
+                      sequence:
+                        - service: "{{ item }}"
                           data:
-                            title: "🚨 CLOSE WINDOWS NOW!"
-                            message: "{{ trigger_window_name }} ist noch offen. Bitte sofort schließen!"
+                            title: "⚠️ Rain/Left Home - CLOSE WINDOWS!"
+                            message: "{{ safety_reason }}. Offene Fenster: {{ open_windows_text }}."
                             data:
                               push:
                                 interruption-level: critical
@@ -619,43 +687,3 @@ action:
                               ttl: 0
                               priority: high
                           continue_on_error: true
-                        - delay:
-                            minutes: 1
-
-  # ===== FLOW 3: SAFETY (RAIN / AWAY MODE) =====
-  - choose:
-      - conditions:
-          - "{{ trigger.id in ['safety_rain', 'safety_away_mode'] }}"
-        sequence:
-          - variables:
-              safety_due_to_rain: "{{ trigger.id == 'safety_rain' }}"
-              safety_due_to_away_mode: "{{ trigger.id == 'safety_away_mode' and away_mode_active }}"
-              safety_should_alert: "{{ any_window_open and (safety_due_to_rain or safety_due_to_away_mode) }}"
-              safety_reason: >
-                {% if safety_due_to_rain %}
-                  🌧️ Regen erkannt
-                {% elif safety_due_to_away_mode %}
-                  🏠 Away Mode aktiviert
-                {% else %}
-                  ⚠️ Sicherheits-Event
-                {% endif %}
-
-          - choose:
-              - conditions:
-                  - "{{ safety_should_alert }}"
-                  - "{{ critical_service != '' }}"
-                sequence:
-                  - service: "{{ critical_service }}"
-                    data:
-                      title: "⚠️ Rain/Left Home - CLOSE WINDOWS!"
-                      message: "{{ safety_reason }}. Offene Fenster: {{ open_windows_text }}."
-                      data:
-                        push:
-                          interruption-level: critical
-                          sound:
-                            name: alarm.caf
-                            critical: 1
-                            volume: 1.0
-                        ttl: 0
-                        priority: high
-                    continue_on_error: true
