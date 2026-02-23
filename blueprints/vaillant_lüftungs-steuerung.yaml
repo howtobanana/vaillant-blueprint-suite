@@ -121,27 +121,6 @@ blueprint:
               step: 1
               unit_of_measurement: "min"
 
-        notify_device:
-          name: "📩 Notify Gerät (Normal)"
-          description: |
-            Mobile-App Gerät(e) für Standard-Reminder.
-          default: []
-          selector:
-            device:
-              filter:
-                integration: mobile_app
-              multiple: true
-        critical_notify_device:
-          name: "🚨 Notify Gerät (Critical)"
-          description: |
-            Mobile-App Gerät(e) für kritische Alarm-Meldungen.
-          default: []
-          selector:
-            device:
-              filter:
-                integration: mobile_app
-              multiple: true
-
     section_master:
       name: "🏠 Master-Raum"
       description: |
@@ -157,6 +136,27 @@ blueprint:
             entity:
               domain: binary_sensor
               device_class: window
+
+    notify_device:
+      name: "📩 Notify Gerät (Normal)"
+      description: |
+        Mobile-App Gerät(e) für Standard-Reminder.
+      default: []
+      selector:
+        device:
+          filter:
+            integration: mobile_app
+          multiple: true
+    critical_notify_device:
+      name: "🚨 Notify Gerät (Critical)"
+      description: |
+        Mobile-App Gerät(e) für kritische Alarm-Meldungen.
+      default: []
+      selector:
+        device:
+          filter:
+            integration: mobile_app
+          multiple: true
 
     section_room2:
       name: "🛏️ Raum 2"

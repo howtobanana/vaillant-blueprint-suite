@@ -50,7 +50,6 @@ blueprint:
           default: []
           selector:
             entity:
-              domain: person
               multiple: true
         preheat_radius:
           name: "🎯 Radius-Schwelle (km)"
@@ -84,7 +83,6 @@ blueprint:
           default: []
           selector:
             entity:
-              domain: input_boolean
               multiple: true
 
     section_notifications:
@@ -108,14 +106,12 @@ blueprint:
           selector:
             boolean:
         notify_entities:
-          name: "📨 Empfänger: Mobile-App Geräte"
+          name: "📨 Empfänger (Geräte)"
           description: |
-            Mobile-App Geräte für Info-Meldungen.
+            Geräte für Info-Meldungen.
           default: []
           selector:
             device:
-              filter:
-                integration: mobile_app
               multiple: true
 
 mode: restart

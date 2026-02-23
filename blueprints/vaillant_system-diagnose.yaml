@@ -384,26 +384,27 @@ blueprint:
           default: "18:00:00"
           selector:
             time: {}
-        notify_warning_entities:
-          name: "📨 Empfänger: Normal Mobile-App Geräte"
-          description: |
-            Mobile-App Geräte für Warnungen/Infos.
-          default: []
-          selector:
-            device:
-              filter:
-                integration: mobile_app
-              multiple: true
-        notify_critical_entities:
-          name: "📨 Empfänger: Kritische Mobile-App Geräte"
-          description: |
-            Mobile-App Geräte für kritische Alerts.
-          default: []
-          selector:
-            device:
-              filter:
-                integration: mobile_app
-              multiple: true
+
+    notify_warning_entities:
+      name: "📨 Empfänger: Normal Mobile-App Geräte"
+      description: |
+        Mobile-App Geräte für Warnungen/Infos.
+      default: []
+      selector:
+        device:
+          filter:
+            integration: mobile_app
+          multiple: true
+    notify_critical_entities:
+      name: "📨 Empfänger: Kritische Mobile-App Geräte"
+      description: |
+        Mobile-App Geräte für kritische Alerts.
+      default: []
+      selector:
+        device:
+          filter:
+            integration: mobile_app
+          multiple: true
 
 mode: restart
 
