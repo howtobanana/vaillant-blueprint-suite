@@ -960,7 +960,7 @@ blueprint:
           name: "📉 Smart-Drop Schwelle (°C)"
           description: |
 
-            Temperatursturz-Erkennung. Schaltet Heizung ab, wenn Ist-Wert um X °C unter Soll-Wert fällt.
+            Temperatursturz-Erkennung. Schaltet Heizung ab, wenn Ist-Wert um X °C unter dem Eco-Anker liegt.
 
           default: 2.0
           selector:
@@ -1710,30 +1710,6 @@ action:
           {{ false }}
         {% endif %}
       away_mode_should_be_active: false
-      master_target_temp: >
-        {% if panic_mode_active | bool(false) %}
-          {{ master_comfort_temp }}
-        {% elif (away_mode_should_be_active | bool(false)) or (away_mode_entity_on | bool(false)) %}
-          {{ away_temp }}
-        {% else %}
-          {{ global_max_demand }}
-        {% endif %}
-      master_rapid_temp_drop: >
-        {% if inputs.master_temp_sensor | string != '' %}
-          {% if inputs.master_climate | string != '' %}
-            {% set current_temp = states(inputs.master_temp_sensor) | float(state_attr(inputs.master_climate, 'current_temperature') | float(21)) %}
-          {% else %}
-            {% set current_temp = states(inputs.master_temp_sensor) | float(21) %}
-          {% endif %}
-        {% elif inputs.master_climate | string != '' %}
-          {% set current_temp = state_attr(inputs.master_climate, 'current_temperature') | float(21) %}
-        {% else %}
-          {% set current_temp = 21 %}
-        {% endif %}
-        {% set target_temp = master_target_temp | float(21) %}
-        {% set drop_threshold = inputs.smart_drop_threshold | float(2.0) %}
-        {{ current_temp <= (target_temp - drop_threshold) }}
-
       # ===== GROUP 3: DEMAND CALCULATION =====
       eco_temp: >
         {% if inputs.eco_temp_input | string != "" %}
@@ -1839,6 +1815,14 @@ action:
           room4_demand | float(eco_temp),
           room5_demand | float(eco_temp)
         ] | max }}
+      master_target_temp: >
+        {% if panic_mode_active | bool(false) %}
+          {{ master_comfort_temp | float(inputs.master_comfort_fixed | float(21)) }}
+        {% elif (away_mode_should_be_active | bool(false)) or (away_mode_entity_on | bool(false)) %}
+          {{ away_temp | float(inputs.away_temp_fixed | float(16)) }}
+        {% else %}
+          {{ global_max_demand | float(eco_temp | float(inputs.eco_temp_fixed | float(19))) }}
+        {% endif %}
   # ════════════════════════════════════════════════════════════
   # DEBUG LOG 2: Demand Calculation
   # ════════════════════════════════════════════════════════════
@@ -1854,7 +1838,7 @@ action:
           level: info
   - variables:
       # ===== GROUP 4: TARGET CALCULATION =====
-      # (Prerequisites moved up to resolve UndefinedError in master_rapid_temp_drop)
+      # (master_target_temp is resolved after global_max_demand in the previous variables block)
       master_humidity: >
         {% if inputs.master_humidity_sensor | string != "" %}
           {{ states(inputs.master_humidity_sensor) | float(50) }}
@@ -1865,9 +1849,9 @@ action:
         {{ inputs.enable_humidity_compensation and master_humidity > 60 and master_humidity < 65 }}
       master_target_with_humidity: >
         {% if humidity_compensation_active | bool(false) %}
-          {{ master_target_temp - 0.5 }}
+          {{ (master_target_temp | float(21)) - 0.5 }}
         {% else %}
-          {{ master_target_temp }}
+          {{ master_target_temp | float(21) }}
         {% endif %}
 
       # ===== GROUP 5: SAFETY & STATUS =====
@@ -1889,9 +1873,40 @@ action:
         {% else %}
           {{ false }}
         {% endif %}
+      global_window_open: >
+        {% set ns = namespace(is_open=false) %}
+        {% for w_id in [
+          inputs.room2_window | string,
+          inputs.room3_window | string,
+          inputs.room4_window | string,
+          inputs.room5_window | string,
+          inputs.follower1_window | string,
+          inputs.follower2_window | string
+        ] %}
+          {% set window_entity_id = w_id | string %}
+          {% if (window_entity_id | lower) not in ['', 'none'] and (states[window_entity_id] is defined) and (states(window_entity_id) == 'on') %}
+            {% set ns.is_open = true %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.is_open }}
+      master_rapid_temp_drop: >
+        {% if inputs.master_temp_sensor | string != '' %}
+          {% if inputs.master_climate | string != '' %}
+            {% set current_temp = states(inputs.master_temp_sensor) | float(state_attr(inputs.master_climate, 'current_temperature') | float(21)) %}
+          {% else %}
+            {% set current_temp = states(inputs.master_temp_sensor) | float(21) %}
+          {% endif %}
+        {% elif inputs.master_climate | string != '' %}
+          {% set current_temp = state_attr(inputs.master_climate, 'current_temperature') | float(21) %}
+        {% else %}
+          {% set current_temp = 21 %}
+        {% endif %}
+        {% set eco_anchor = eco_temp | float(inputs.eco_temp_fixed | float(19)) %}
+        {% set drop_threshold = inputs.smart_drop_threshold | float(2.0) %}
+        {{ (global_window_open | bool(false)) and ((current_temp | float(21)) < ((eco_anchor | float(19)) - (drop_threshold | float(2.0)))) }}
       master_target_final: >
         {% if master_rapid_temp_drop | bool(false) %}
-          {{ inputs.min_trv_temp }}
+          {{ inputs.min_trv_temp | float(12) }}
         {% else %}
           {{ master_target_with_humidity }}
         {% endif %}
