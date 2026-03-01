@@ -1696,6 +1696,46 @@ action:
         {% endif %}
       room5_presence_for_demand: >
         {{ room5_presence_fresh | bool(false) }}
+      master_sched_valid: >
+        {{ inputs.master_schedule | string not in ['', 'sensor.none', 'none'] }}
+      master_helper_valid: >
+        {{ inputs.master_presence_helper | string not in ['', 'sensor.none', 'none'] }}
+      master_sensors_valid: >
+        {{ (inputs.master_presence_sensors | reject('in', ['', 'sensor.none', 'none']) | list | length > 0) if inputs.master_presence_sensors else false }}
+      master_is_manual: >
+        {{ (not (master_sched_valid | bool(false))) and (not (master_helper_valid | bool(false))) and (not (master_sensors_valid | bool(false))) }}
+      room2_sched_valid: >
+        {{ inputs.room2_schedule | string not in ['', 'sensor.none', 'none'] }}
+      room2_helper_valid: >
+        {{ inputs.room2_presence_helper | string not in ['', 'sensor.none', 'none'] }}
+      room2_sensors_valid: >
+        {{ (inputs.room2_presence_sensors | reject('in', ['', 'sensor.none', 'none']) | list | length > 0) if inputs.room2_presence_sensors else false }}
+      room2_is_manual: >
+        {{ (not (room2_sched_valid | bool(false))) and (not (room2_helper_valid | bool(false))) and (not (room2_sensors_valid | bool(false))) }}
+      room3_sched_valid: >
+        {{ inputs.room3_schedule | string not in ['', 'sensor.none', 'none'] }}
+      room3_helper_valid: >
+        {{ inputs.room3_presence_helper | string not in ['', 'sensor.none', 'none'] }}
+      room3_sensors_valid: >
+        {{ (inputs.room3_presence_sensors | reject('in', ['', 'sensor.none', 'none']) | list | length > 0) if inputs.room3_presence_sensors else false }}
+      room3_is_manual: >
+        {{ (not (room3_sched_valid | bool(false))) and (not (room3_helper_valid | bool(false))) and (not (room3_sensors_valid | bool(false))) }}
+      room4_sched_valid: >
+        {{ inputs.room4_schedule | string not in ['', 'sensor.none', 'none'] }}
+      room4_helper_valid: >
+        {{ inputs.room4_presence_helper | string not in ['', 'sensor.none', 'none'] }}
+      room4_sensors_valid: >
+        {{ (inputs.room4_presence_sensors | reject('in', ['', 'sensor.none', 'none']) | list | length > 0) if inputs.room4_presence_sensors else false }}
+      room4_is_manual: >
+        {{ (not (room4_sched_valid | bool(false))) and (not (room4_helper_valid | bool(false))) and (not (room4_sensors_valid | bool(false))) }}
+      room5_sched_valid: >
+        {{ inputs.room5_schedule | string not in ['', 'sensor.none', 'none'] }}
+      room5_helper_valid: >
+        {{ inputs.room5_presence_helper | string not in ['', 'sensor.none', 'none'] }}
+      room5_sensors_valid: >
+        {{ (inputs.room5_presence_sensors | reject('in', ['', 'sensor.none', 'none']) | list | length > 0) if inputs.room5_presence_sensors else false }}
+      room5_is_manual: >
+        {{ (not (room5_sched_valid | bool(false))) and (not (room5_helper_valid | bool(false))) and (not (room5_sensors_valid | bool(false))) }}
       # ===== TARGET CALCULATION PREREQUISITES =====
       away_mode_helper_set: "{{ inputs.away_mode_boolean | length > 0 }}"
       away_mode_entity_on: >
@@ -1760,7 +1800,7 @@ action:
           {{ inputs.room5_comfort_fixed }}
         {% endif %}
       master_demand: >
-        {% if master_schedule_active | bool(false) or master_presence_detected | bool(false) %}
+        {% if master_schedule_active | bool(false) or master_presence_detected | bool(false) or master_is_manual | bool(false) %}
           {{ master_comfort_temp }}
         {% else %}
           {{ eco_temp }}
@@ -1780,7 +1820,7 @@ action:
       room2_demand: >
         {% set room2_sched = room2_schedule_active_for_demand | string | lower %}
         {% set room2_pres = room2_presence_for_demand | string | lower %}
-        {% set room2_local_override = (room2_sched in ['true', 'on', '1']) or (room2_pres in ['true', 'on', '1']) %}
+        {% set room2_local_override = (room2_sched in ['true', 'on', '1']) or (room2_pres in ['true', 'on', '1']) or (room2_is_manual | bool(false)) %}
         {% if (inputs.room2_enabled | string | lower) in ['true', 'on', '1'] and room2_local_override | bool(false) %}
           {{ room2_comfort_temp_for_demand }}
         {% else %}
@@ -1789,7 +1829,7 @@ action:
       room3_demand: >
         {% set room3_sched = room3_schedule_active_for_demand | string | lower %}
         {% set room3_pres = room3_presence_for_demand | string | lower %}
-        {% set room3_local_override = (room3_sched in ['true', 'on', '1']) or (room3_pres in ['true', 'on', '1']) %}
+        {% set room3_local_override = (room3_sched in ['true', 'on', '1']) or (room3_pres in ['true', 'on', '1']) or (room3_is_manual | bool(false)) %}
         {% if (inputs.room3_enabled | string | lower) in ['true', 'on', '1'] and room3_local_override | bool(false) %}
           {{ room3_comfort_temp_for_demand }}
         {% else %}
@@ -1798,7 +1838,7 @@ action:
       room4_demand: >
         {% set room4_sched = room4_schedule_active_for_demand | string | lower %}
         {% set room4_pres = room4_presence_for_demand | string | lower %}
-        {% set room4_local_override = (room4_sched in ['true', 'on', '1']) or (room4_pres in ['true', 'on', '1']) %}
+        {% set room4_local_override = (room4_sched in ['true', 'on', '1']) or (room4_pres in ['true', 'on', '1']) or (room4_is_manual | bool(false)) %}
         {% if (inputs.room4_enabled | string | lower) in ['true', 'on', '1'] and room4_local_override | bool(false) %}
           {{ room4_comfort_temp_for_demand }}
         {% else %}
@@ -1807,7 +1847,7 @@ action:
       room5_demand: >
         {% set room5_sched = room5_schedule_active_for_demand | string | lower %}
         {% set room5_pres = room5_presence_for_demand | string | lower %}
-        {% set room5_local_override = (room5_sched in ['true', 'on', '1']) or (room5_pres in ['true', 'on', '1']) %}
+        {% set room5_local_override = (room5_sched in ['true', 'on', '1']) or (room5_pres in ['true', 'on', '1']) or (room5_is_manual | bool(false)) %}
         {% if (inputs.room5_enabled | string | lower) in ['true', 'on', '1'] and room5_local_override | bool(false) %}
           {{ room5_comfort_temp_for_demand }}
         {% else %}
@@ -2472,7 +2512,7 @@ action:
                 {% if inputs.room2_enabled | bool(false) and inputs.room2_climate | string != '' and room2_final_temp is defined and room2_current_temp is defined %}
                   {% set room2_effective_target = room2_final_temp | float(0) %}
                   {% set room2_needs_heat = room2_effective_target > ((room2_current_temp | float(0)) + (inputs.hysteresis | float(0.6))) %}
-                  {% set room2_active = ((room2_schedule_active | default(false)) | bool(false)) or ((room2_presence | default(false)) | bool(false)) %}
+                  {% set room2_active = ((room2_schedule_active | default(false)) | bool(false)) or ((room2_presence | default(false)) | bool(false)) or (room2_is_manual | bool(false)) %}
                   {% if room2_needs_heat | bool(false) and room2_active | bool(false) %}
                     {% set ns.vals = ns.vals + [room2_effective_target] %}
                   {% endif %}
@@ -2482,7 +2522,7 @@ action:
                 {% if inputs.room3_enabled | bool(false) and inputs.room3_climate | string != '' and room3_final_temp is defined and room3_current_temp is defined %}
                   {% set room3_effective_target = room3_final_temp | float(0) %}
                   {% set room3_needs_heat = room3_effective_target > ((room3_current_temp | float(0)) + (inputs.hysteresis | float(0.6))) %}
-                  {% set room3_active = ((room3_schedule_active | default(false)) | bool(false)) or ((room3_presence | default(false)) | bool(false)) %}
+                  {% set room3_active = ((room3_schedule_active | default(false)) | bool(false)) or ((room3_presence | default(false)) | bool(false)) or (room3_is_manual | bool(false)) %}
                   {% if room3_needs_heat | bool(false) and room3_active | bool(false) %}
                     {% set ns.vals = ns.vals + [room3_effective_target] %}
                   {% endif %}
@@ -2492,7 +2532,7 @@ action:
                 {% if inputs.room4_enabled | bool(false) and inputs.room4_climate | string != '' and room4_final_temp is defined and room4_current_temp is defined %}
                   {% set room4_effective_target = room4_final_temp | float(0) %}
                   {% set room4_needs_heat = room4_effective_target > ((room4_current_temp | float(0)) + (inputs.hysteresis | float(0.6))) %}
-                  {% set room4_active = ((room4_schedule_active | default(false)) | bool(false)) or ((room4_presence | default(false)) | bool(false)) %}
+                  {% set room4_active = ((room4_schedule_active | default(false)) | bool(false)) or ((room4_presence | default(false)) | bool(false)) or (room4_is_manual | bool(false)) %}
                   {% if room4_needs_heat | bool(false) and room4_active | bool(false) %}
                     {% set ns.vals = ns.vals + [room4_effective_target] %}
                   {% endif %}
@@ -2502,7 +2542,7 @@ action:
                 {% if inputs.room5_enabled | bool(false) and inputs.room5_climate | string != '' and room5_final_temp is defined and room5_current_temp is defined %}
                   {% set room5_effective_target = room5_final_temp | float(0) %}
                   {% set room5_needs_heat = room5_effective_target > ((room5_current_temp | float(0)) + (inputs.hysteresis | float(0.6))) %}
-                  {% set room5_active = ((room5_schedule_active | default(false)) | bool(false)) or ((room5_presence | default(false)) | bool(false)) %}
+                  {% set room5_active = ((room5_schedule_active | default(false)) | bool(false)) or ((room5_presence | default(false)) | bool(false)) or (room5_is_manual | bool(false)) %}
                   {% if room5_needs_heat | bool(false) and room5_active | bool(false) %}
                     {% set ns.vals = ns.vals + [room5_effective_target] %}
                   {% endif %}
@@ -2557,15 +2597,15 @@ action:
               room_boost_enabled_effective: >
                 {{ (inputs.enable_room_boost | bool(false)) and (inputs.room_boost_amount | float(0) > 0) and (not (master_forced_min_active | bool(false))) and (not (away_mode_active_effective | bool(false))) }}
               master_boost_participates: >
-                {{ (master_schedule_active | bool(false)) or (master_presence_detected | bool(false)) }}
+                {{ (master_schedule_active | bool(false)) or (master_presence_detected | bool(false)) or (master_is_manual | bool(false)) }}
               room2_boost_participates: >
-                {{ (inputs.room2_enabled | bool(false)) and ((room2_schedule_active_for_demand | bool(false)) or (room2_presence_for_demand | bool(false))) }}
+                {{ (inputs.room2_enabled | bool(false)) and ((room2_schedule_active_for_demand | bool(false)) or (room2_presence_for_demand | bool(false)) or (room2_is_manual | bool(false))) }}
               room3_boost_participates: >
-                {{ (inputs.room3_enabled | bool(false)) and ((room3_schedule_active_for_demand | bool(false)) or (room3_presence_for_demand | bool(false))) }}
+                {{ (inputs.room3_enabled | bool(false)) and ((room3_schedule_active_for_demand | bool(false)) or (room3_presence_for_demand | bool(false)) or (room3_is_manual | bool(false))) }}
               room4_boost_participates: >
-                {{ (inputs.room4_enabled | bool(false)) and ((room4_schedule_active_for_demand | bool(false)) or (room4_presence_for_demand | bool(false))) }}
+                {{ (inputs.room4_enabled | bool(false)) and ((room4_schedule_active_for_demand | bool(false)) or (room4_presence_for_demand | bool(false)) or (room4_is_manual | bool(false))) }}
               room5_boost_participates: >
-                {{ (inputs.room5_enabled | bool(false)) and ((room5_schedule_active_for_demand | bool(false)) or (room5_presence_for_demand | bool(false))) }}
+                {{ (inputs.room5_enabled | bool(false)) and ((room5_schedule_active_for_demand | bool(false)) or (room5_presence_for_demand | bool(false)) or (room5_is_manual | bool(false))) }}
               master_needs_boost: >
                 {% if room_boost_enabled_effective | bool(false) and (master_boost_participates | bool(false)) %}
                   {% if inputs.master_climate | string != '' %}
